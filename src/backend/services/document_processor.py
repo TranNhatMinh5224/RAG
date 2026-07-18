@@ -1,0 +1,111 @@
+import fitz  # PyMuPDF
+import docx
+import pandas as pd
+from pptx import Presentation
+import re
+import os
+from langchain_experimental.text_splitter import SemanticChunker
+
+class DocumentProcessor:
+    def __init__(self, embeddings):
+        """Khởi tạo với Semantic Chunker - Cắt văn bản dựa trên ý nghĩa ngữ nghĩa"""
+        # Sử dụng model embeddings để tính độ tương đồng giữa các câu
+        self.text_splitter = SemanticChunker(
+            embeddings,
+            breakpoint_threshold_type="percentile", # Cắt khi sự thay đổi ngữ nghĩa vượt mức phân vị
+            breakpoint_threshold_amount=80 # Cắt ở top 20% những câu có sự khác biệt lớn nhất về ý nghĩa
+        )
+
+    def clean_text(self, text: str) -> str:
+        # Xóa bỏ các khoảng trắng thừa, dấu xuống dòng liên tiếp
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+
+    def process_pdf(self, file_path: str):
+        """Hàm phụ: Đọc file PDF"""
+        doc = fitz.open(file_path)
+        pages_text = []
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)
+            text = page.get_text("text")
+            if text.strip():
+                pages_text.append({"text": text, "page": page_num + 1})
+        doc.close()
+        return pages_text
+
+    def process_docx(self, file_path: str):
+        """Hàm phụ: Đọc file Word (.docx)"""
+        doc = docx.Document(file_path)
+        # Word không có khái niệm trang (Page) rõ ràng như PDF, nên gộp tất cả thành Trang 1
+        full_text = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+        return [{"text": full_text, "page": 1}] if full_text else []
+
+    def process_xlsx(self, file_path: str):
+        """Hàm phụ: Đọc file Excel (.xlsx) và chuyển thành bảng Markdown"""
+        # Đọc tất cả các sheet trong file Excel
+        excel_data = pd.read_excel(file_path, sheet_name=None)
+        pages_text = []
+        for sheet_name, df in excel_data.items():
+            # Xóa các dòng/cột rỗng hoàn toàn để dữ liệu sạch hơn
+            df = df.dropna(how='all').dropna(axis=1, how='all')
+            if not df.empty:
+                # Chuyển DataFrame thành định dạng Markdown (Rất tốt cho AI đọc)
+                markdown_table = df.to_markdown(index=False)
+                text = f"--- Dữ liệu từ Sheet: {sheet_name} ---\n{markdown_table}"
+                pages_text.append({"text": text, "page": f"Sheet {sheet_name}"})
+        return pages_text
+
+    def process_pptx(self, file_path: str):
+        """Hàm phụ: Đọc file PowerPoint (.pptx)"""
+        prs = Presentation(file_path)
+        pages_text = []
+        for i, slide in enumerate(prs.slides):
+            slide_text = []
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    slide_text.append(shape.text)
+            
+            full_text = "\n".join([t for t in slide_text if t.strip()])
+            if full_text:
+                pages_text.append({"text": full_text, "page": i + 1})
+        return pages_text
+
+    def process_file(self, file_path: str):
+        """Đọc PDF/Docx/Xlsx/Pptx, dọn dẹp Text, cắt Semantic Chunk và gắn Metadata"""
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Không tìm thấy file: {file_path}")
+
+        print(f"Đang đọc file: {file_path}")
+        
+        file_ext = file_path.lower()
+        if file_ext.endswith(".pdf"):
+            pages_data = self.process_pdf(file_path)
+        elif file_ext.endswith(".docx"):
+            pages_data = self.process_docx(file_path)
+        elif file_ext.endswith(".xlsx"):
+            pages_data = self.process_xlsx(file_path)
+        elif file_ext.endswith(".pptx"):
+            pages_data = self.process_pptx(file_path)
+        else:
+            raise ValueError("Định dạng file không được hỗ trợ (Chỉ nhận .pdf, .docx, .xlsx, .pptx)")
+
+        chunks_with_metadata = []
+
+        for data in pages_data:
+            cleaned_text = self.clean_text(data["text"])
+            
+            # SemanticChunker cắt dựa trên câu và gom nhóm ý nghĩa
+            page_chunks = self.text_splitter.split_text(cleaned_text)
+            
+            for chunk in page_chunks:
+                if len(chunk.strip()) > 10: # Chỉ lấy các đoạn có nội dung thực tế
+                    chunks_with_metadata.append({
+                        "content": chunk,
+                        "metadata": {
+                            "source": os.path.basename(file_path),
+                            "page": data["page"]
+                        }
+                    })
+                
+        print(f" Semantic Chunking hoàn tất: Tạo ra {len(chunks_with_metadata)} khối ý nghĩa từ tài liệu.")
+        return chunks_with_metadata

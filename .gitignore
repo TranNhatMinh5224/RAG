@@ -1,0 +1,45 @@
+# =========================
+# PYTHON & BACKEND
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# =========================
+# NODE.JS & FRONTEND
+# =========================
+node_modules/
+dist/
+dist-ssr/
+*.local
+.npm/
+
+# =========================
+# ENVIRONMENT & SECRETS
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# DATA & DATABASE
+# =========================
+data/
+qdrant_data/
+qdrant_prod_data/
+*.pdf
+*.log
+
+# =========================
+# IDE & OS
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
