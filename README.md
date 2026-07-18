@@ -111,7 +111,7 @@ Dự án triển khai một Pipeline RAG cực kỳ chặt chẽ với 3 giai đ
 
 ---
 
-## 📸 7. Hình Ảnh Giao Diện (Screenshots)
+## 📸 6. Hình Ảnh Giao Diện (Screenshots)
 
 ### Chatbot trả lời 
 ![Giao diện 1](Office/1.png)
@@ -125,7 +125,7 @@ Dự án triển khai một Pipeline RAG cực kỳ chặt chẽ với 3 giai đ
 ![Giao diện 4](Office/4.png)
 
 ---
-## 🚀 5. Hướng Dẫn Cài Đặt (Installation)
+## 🚀 7. Hướng Dẫn Cài Đặt (Installation)
 
 ### Yêu cầu tiên quyết
 - [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/) đã được cài đặt.
