@@ -5,6 +5,7 @@
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-ff5252)
 ![Gemini](https://img.shields.io/badge/AI-Google_Gemini_2.5_Flash-orange)
+![LangChain](https://img.shields.io/badge/LangChain-AI_Pipeline-1C3C3C?logo=langchain&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
 
 **Enterprise AI RAG** là hệ thống giải pháp cho phép người dùng và doanh nghiệp giao tiếp trực tiếp với kho tài liệu nội bộ (PDF, Word, Excel, PowerPoint) một cách bảo mật, chính xác và loại bỏ hoàn toàn tình trạng "ảo giác" (hallucination) của AI. 
@@ -84,6 +85,46 @@ Dự án triển khai một Pipeline RAG cực kỳ chặt chẽ với 3 giai đ
 
 ---
 
+
+## 📂 5. Cấu Trúc Thư Mục Chính
+
+```text
+├── data/                    # Nơi chứa tài liệu người dùng upload (nếu có lưu local)
+├── qdrant_data/             # Volume lưu trữ Vector Database Qdrant
+├── src/
+│   ├── backend/             # Source code FastAPI
+│   │   ├── api/             # API Routers (auth, chat, conversation, document)
+│   │   ├── core/            # Cấu hình bảo mật, setting hệ thống
+│   │   ├── models/          # SQLAlchemy Models & Pydantic Schemas
+│   │   ├── repositories/    # Database Repository Pattern
+│   │   └── services/        # Logic Business (RAG, Processor, LLM, VectorStore)
+│   └── frontend/            # Source code React Vite
+│       ├── src/
+│       │   ├── api/         # Axios API clients
+│       │   ├── components/  # Các UI Component tái sử dụng
+│       │   ├── contexts/    # React Context (Auth, Theme...)
+│       │   ├── features/    # Tính năng (ChatWindow, DocumentModal, Sidebar)
+│       │   └── pages/       # Các trang chính (Login, Dashboard)
+├── docker-compose.yml       # Cấu hình triển khai hệ thống
+└── README.md                # Tài liệu dự án
+```
+
+---
+
+## 📸 7. Hình Ảnh Giao Diện (Screenshots)
+
+### Chatbot trả lời 
+![Giao diện 1](Office/1.png)
+
+
+![Giao diện 2](Office/2.png)
+
+![Giao diện 3](Office/3.png)
+
+
+![Giao diện 4](Office/4.png)
+
+---
 ## 🚀 5. Hướng Dẫn Cài Đặt (Installation)
 
 ### Yêu cầu tiên quyết
@@ -116,28 +157,4 @@ Dự án triển khai một Pipeline RAG cực kỳ chặt chẽ với 3 giai đ
 
 ---
 
-## 📂 6. Cấu Trúc Thư Mục Chính
-
-```text
-├── data/                    # Nơi chứa tài liệu người dùng upload (nếu có lưu local)
-├── qdrant_data/             # Volume lưu trữ Vector Database Qdrant
-├── src/
-│   ├── backend/             # Source code FastAPI
-│   │   ├── api/             # API Routers (auth, chat, conversation, document)
-│   │   ├── core/            # Cấu hình bảo mật, setting hệ thống
-│   │   ├── models/          # SQLAlchemy Models & Pydantic Schemas
-│   │   ├── repositories/    # Database Repository Pattern
-│   │   └── services/        # Logic Business (RAG, Processor, LLM, VectorStore)
-│   └── frontend/            # Source code React Vite
-│       ├── src/
-│       │   ├── api/         # Axios API clients
-│       │   ├── components/  # Các UI Component tái sử dụng
-│       │   ├── contexts/    # React Context (Auth, Theme...)
-│       │   ├── features/    # Tính năng (ChatWindow, DocumentModal, Sidebar)
-│       │   └── pages/       # Các trang chính (Login, Dashboard)
-├── docker-compose.yml       # Cấu hình triển khai hệ thống
-└── README.md                # Tài liệu dự án
-```
-
----
 *Phát triển bởi Trần Nhật Minh.*
