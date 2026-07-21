@@ -24,3 +24,6 @@ python-docx
 pandas
 openpyxl
 python-pptx
+paddlepaddle
+paddleocr
+opencv-python-headless

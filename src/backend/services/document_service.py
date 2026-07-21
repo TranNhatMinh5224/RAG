@@ -12,7 +12,7 @@ class DocumentService:
 
     async def process_upload_document(self, current_user: User, file: UploadFile) -> Document:
         """Xử lý logic upload: lưu file, ghi DB, và đưa vào Qdrant"""
-        valid_extensions = ('.pdf', '.docx', '.xlsx', '.pptx')
+        valid_extensions = ('.pdf', '.docx', '.xlsx', '.pptx', '.png', '.jpg', '.jpeg')
         if not file.filename.lower().endswith(valid_extensions):
             raise HTTPException(status_code=400, detail=f"Hệ thống hiện chỉ hỗ trợ các định dạng: {', '.join(valid_extensions)}")
         

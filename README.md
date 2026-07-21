@@ -6,6 +6,7 @@
 ![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-ff5252)
 ![Gemini](https://img.shields.io/badge/AI-Google_Gemini_2.5_Flash-orange)
 ![LangChain](https://img.shields.io/badge/LangChain-AI_Pipeline-1C3C3C?logo=langchain&logoColor=white)
+![PaddleOCR](https://img.shields.io/badge/PaddleOCR-PP_OCRv4-blue)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
 
 **Enterprise AI RAG** là hệ thống giải pháp cho phép người dùng và doanh nghiệp giao tiếp trực tiếp với kho tài liệu nội bộ (PDF, Word, Excel, PowerPoint) một cách bảo mật, chính xác và loại bỏ hoàn toàn tình trạng "ảo giác" (hallucination) của AI. 
@@ -49,9 +50,10 @@ Hệ thống được thiết kế theo kiến trúc Microservices tinh gọn, d
 - Mật khẩu được băm (hash) an toàn.
 
 ### 📂 Quản lý Tài liệu Đa định dạng
-- Hỗ trợ đa dạng file: `.pdf`, `.docx`, `.xlsx`, `.pptx`.
+- Hỗ trợ đa dạng file: `.pdf`, `.docx`, `.xlsx`, `.pptx`, `.png`, `.jpg`.
 - Thuật toán trích xuất linh hoạt: 
-  - Đọc text theo trang (PDF).
+  - Đọc text theo trang (PDF điện tử).
+  - Tích hợp **PaddleOCR** làm Fallback tự động trích xuất chữ từ Hình ảnh và các bản PDF Scan.
   - Đọc text theo đoạn (Word).
   - Tự động chuyển đổi bảng dữ liệu thành Markdown (Excel) giúp AI đọc hiểu xuất sắc.
   - Đọc text theo từng Slide (PowerPoint).
@@ -69,6 +71,7 @@ Hệ thống được thiết kế theo kiến trúc Microservices tinh gọn, d
 Dự án triển khai một Pipeline RAG cực kỳ chặt chẽ với 3 giai đoạn:
 
 ### Giai đoạn 1: Ingestion Pipeline (Nạp & Tiền xử lý dữ liệu)
+- **Trích xuất Đa luồng:** Kết hợp PyMuPDF cho tài liệu số và **PaddleOCR** cho ảnh/tài liệu scan để vét cạn văn bản.
 - **Làm sạch:** Tự động xoá khoảng trắng, dấu xuống dòng thừa.
 - **Semantic Chunking:** Không cắt văn bản cơ học theo số chữ. Sử dụng `SemanticChunker` (ngưỡng phân vị 80%) kết hợp mô hình Embedding để tính toán sự thay đổi ngữ nghĩa. Khối văn bản (Chunk) chỉ được cắt khi ý nghĩa chuyển sang một hướng khác, đảm bảo độ trọn vẹn của thông tin.
 - **Embedding & Vector Storage:** Nén chunks qua mô hình `BAAI/bge-m3` (tiếng Việt xuất sắc) và lưu vào Qdrant cùng với Metadata chi tiết (`source`, `page`, `user_id`, `document_id`).
@@ -149,7 +152,7 @@ Dự án triển khai một Pipeline RAG cực kỳ chặt chẽ với 3 giai đ
    ```bash
    docker compose up -d --build
    ```
-   > **Lưu ý:** Trong lần khởi chạy đầu tiên, hệ thống sẽ tự động tải các weights của mô hình `BAAI/bge-m3` về máy (khoảng 1-2GB), có thể mất 5-10 phút phụ thuộc vào tốc độ mạng.
+   > **Lưu ý:** Trong lần khởi chạy đầu tiên, hệ thống sẽ tự động tải các weights của mô hình `BAAI/bge-m3` và mô hình nhận diện chữ `PaddleOCR` về máy (khoảng 1-2GB), có thể mất 5-10 phút phụ thuộc vào tốc độ mạng.
 
 4. **Trải nghiệm:**
    - **Giao diện người dùng (Frontend):** `http://localhost:5173`

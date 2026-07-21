@@ -99,7 +99,7 @@ const DocumentManagerModal = ({ show, onHide, conversationId }) => {
                 <div className="d-flex justify-content-between align-items-center mb-3">
                     <p className="mb-0 text-secondary">Tích chọn các file muốn làm "Bộ não" cho cuộc trò chuyện này.</p>
                     <div>
-                        <input type="file" id="fileUpload" className="d-none" onChange={handleUpload} accept=".pdf,.docx,.xlsx,.pptx" />
+                        <input type="file" id="fileUpload" className="d-none" onChange={handleUpload} accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg" />
                         <Button 
                             variant="primary" 
                             className="btn-gradient" 
@@ -115,7 +115,7 @@ const DocumentManagerModal = ({ show, onHide, conversationId }) => {
                 {loading ? (
                     <div className="text-center py-5"><Spinner animation="border" variant="info" /></div>
                 ) : documents.length === 0 ? (
-                    <div className="text-center text-secondary py-5">Chưa có tài liệu nào. Hãy tải lên file PDF, Word, Excel hoặc PowerPoint.</div>
+                    <div className="text-center text-secondary py-5">Chưa có tài liệu nào. Hãy tải lên file PDF, Word, Excel, PowerPoint hoặc Ảnh (.png, .jpg).</div>
                 ) : (
                     <ListGroup variant="flush" className="bg-transparent">
                         {documents.map(doc => {

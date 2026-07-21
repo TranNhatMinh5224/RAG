@@ -4,6 +4,8 @@ import pandas as pd
 from pptx import Presentation
 import re
 import os
+import numpy as np
+from paddleocr import PaddleOCR
 from langchain_experimental.text_splitter import SemanticChunker
 
 class DocumentProcessor:
@@ -15,6 +17,8 @@ class DocumentProcessor:
             breakpoint_threshold_type="percentile", # Cắt khi sự thay đổi ngữ nghĩa vượt mức phân vị
             breakpoint_threshold_amount=80 # Cắt ở top 20% những câu có sự khác biệt lớn nhất về ý nghĩa
         )
+        print("Đang khởi tạo PaddleOCR...")
+        self.ocr = PaddleOCR(use_angle_cls=True, lang='vi', show_log=False)
 
     def clean_text(self, text: str) -> str:
         # Xóa bỏ các khoảng trắng thừa, dấu xuống dòng liên tiếp
@@ -22,16 +26,44 @@ class DocumentProcessor:
         return text.strip()
 
     def process_pdf(self, file_path: str):
-        """Hàm phụ: Đọc file PDF"""
+        """Hàm phụ: Đọc file PDF (Hỗ trợ Text-PDF và Scan-PDF bằng OCR)"""
         doc = fitz.open(file_path)
         pages_text = []
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
-            text = page.get_text("text")
-            if text.strip():
+            text = page.get_text("text").strip()
+            if text:
                 pages_text.append({"text": text, "page": page_num + 1})
+            else:
+                # Nếu trang PDF không có text điện tử -> Kích hoạt OCR
+                pix = page.get_pixmap()
+                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
+                if pix.n == 4:
+                    import cv2
+                    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+                elif pix.n == 1:
+                    import cv2
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+                
+                result = self.ocr.ocr(img, cls=True)
+                page_text = ""
+                if result and result[0]:
+                    for line in result[0]:
+                        page_text += line[1][0] + "\n"
+                
+                if page_text.strip():
+                    pages_text.append({"text": page_text, "page": page_num + 1})
         doc.close()
         return pages_text
+
+    def process_image(self, file_path: str):
+        """Hàm phụ: Đọc trực tiếp file ảnh bằng PaddleOCR"""
+        result = self.ocr.ocr(file_path, cls=True)
+        page_text = ""
+        if result and result[0]:
+            for line in result[0]:
+                page_text += line[1][0] + "\n"
+        return [{"text": page_text, "page": 1}] if page_text.strip() else []
 
     def process_docx(self, file_path: str):
         """Hàm phụ: Đọc file Word (.docx)"""
@@ -80,6 +112,8 @@ class DocumentProcessor:
         file_ext = file_path.lower()
         if file_ext.endswith(".pdf"):
             pages_data = self.process_pdf(file_path)
+        elif file_ext.endswith((".png", ".jpg", ".jpeg")):
+            pages_data = self.process_image(file_path)
         elif file_ext.endswith(".docx"):
             pages_data = self.process_docx(file_path)
         elif file_ext.endswith(".xlsx"):
@@ -87,7 +121,7 @@ class DocumentProcessor:
         elif file_ext.endswith(".pptx"):
             pages_data = self.process_pptx(file_path)
         else:
-            raise ValueError("Định dạng file không được hỗ trợ (Chỉ nhận .pdf, .docx, .xlsx, .pptx)")
+            raise ValueError("Định dạng file không được hỗ trợ (Chỉ nhận .pdf, .docx, .xlsx, .pptx, .png, .jpg, .jpeg)")
 
         chunks_with_metadata = []
 
