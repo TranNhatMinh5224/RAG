@@ -76,9 +76,11 @@ Dự án triển khai một Pipeline RAG cực kỳ chặt chẽ với 3 giai đ
 - **Semantic Chunking:** Không cắt văn bản cơ học theo số chữ. Sử dụng `SemanticChunker` (ngưỡng phân vị 80%) kết hợp mô hình Embedding để tính toán sự thay đổi ngữ nghĩa. Khối văn bản (Chunk) chỉ được cắt khi ý nghĩa chuyển sang một hướng khác, đảm bảo độ trọn vẹn của thông tin.
 - **Embedding & Vector Storage:** Nén chunks qua mô hình `BAAI/bge-m3` (tiếng Việt xuất sắc) và lưu vào Qdrant cùng với Metadata chi tiết (`source`, `page`, `user_id`, `document_id`).
 
-### Giai đoạn 2: Retrieval Pipeline (Truy xuất dữ liệu)
+### Giai đoạn 2: Retrieval Pipeline (Truy xuất dữ liệu - Cấp độ Advanced)
+- **Query Rewriting (Chuẩn hóa câu hỏi):** Sử dụng LLM để đọc lịch sử trò chuyện và tự động viết lại câu hỏi gốc của người dùng thành một câu truy vấn rõ nghĩa, độc lập ngữ cảnh (Ví dụ: "Vậy khoản 2 nói gì?" -> "Khoản 2 của hợp đồng lao động năm 2023 nói gì?"). Tránh hoàn toàn việc RAG bị mất ngữ cảnh.
 - **Hard-Filtering:** Sử dụng cơ chế Filter của Qdrant. Hệ thống sẽ bắt buộc truy vấn phải khớp với `user_id` hiện tại VÀ nằm trong mảng `document_ids` đang đính kèm vào cuộc trò chuyện.
-- **Similarity Search:** Sử dụng Cosine Similarity để trích xuất ra Top 3 Chunk có ngữ nghĩa sát nhất với câu hỏi.
+- **Hybrid Search:** Kết hợp song song tìm kiếm theo Ngữ nghĩa (Dense Vector với mô hình `bge-m3`) và tìm kiếm Từ khóa chính xác (Sparse Vector theo thuật toán BM25). Quét và lấy ra Top 15 đoạn văn bản tiềm năng nhất.
+- **Re-ranking (Cross-Encoder):** Đưa 15 đoạn văn bản thô qua mô hình "giám khảo" độc lập `BAAI/bge-reranker-v2-m3` để chấm điểm lại mức độ phù hợp một cách cực kỳ khắt khe, sau đó lọc ra đúng Top 3 kết quả tinh hoa nhất để đưa cho LLM.
 
 ### Giai đoạn 3: Generation Pipeline (Sinh câu trả lời)
 - **Format Context:** Tiêm metadata vào ngữ cảnh (`Tài liệu [Nguồn: ... - Trang: ...]`).

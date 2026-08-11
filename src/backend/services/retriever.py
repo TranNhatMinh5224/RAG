@@ -1,15 +1,20 @@
 from qdrant_client.http import models
+from sentence_transformers import CrossEncoder
 
 class Retriever:
     def __init__(self, vsm):
         """Khởi tạo Retriever, nhận VectorStoreManager từ bên ngoài truyền vào (Dependency Injection)"""
         self.vsm = vsm
         self.vector_store = self.vsm.vector_store
+        
+        print("Đang tải mô hình Re-ranker (BAAI/bge-reranker-v2-m3)...")
+        self.reranker = CrossEncoder('BAAI/bge-reranker-v2-m3')
 
     async def search_async(self, query: str, user_id: int, document_ids: list[int], top_k: int = 3):
         """Hàm tìm kiếm bất đồng bộ (Có bộ lọc Multi-tenant)"""
 
-        print(f"Đang tìm kiếm thông tin cho câu hỏi: '{query}' ...")
+        fetch_k = 15
+        print(f"BƯỚC 1: Đang tìm kiếm Hybrid {fetch_k} kết quả thô cho câu hỏi: '{query}' ...")
         
         # Thiết lập bộ lọc (Filter): Phải đúng user_id VÀ đúng document_id nằm trong danh sách
         search_filter = models.Filter(
@@ -25,18 +30,40 @@ class Retriever:
             ]
         )
         
-        # Dùng asimilarity_search với filter
-        results = await self.vector_store.asimilarity_search(
+        # Dùng asimilarity_search với filter lấy fetch_k kết quả
+        raw_results = await self.vector_store.asimilarity_search(
             query, 
-            k=top_k,
+            k=fetch_k,
             filter=search_filter
         )
         
-        print(f"Đã tìm thấy {len(results)} đoạn văn bản liên quan nhất:\n")
-        for i, doc in enumerate(results):
+        if not raw_results:
+            return []
+
+        print(f"BƯỚC 2: Đang dùng Re-ranker chấm điểm lại {len(raw_results)} kết quả...")
+        
+        # Tạo danh sách các cặp (Câu hỏi, Đoạn văn) để cho Giám khảo chấm
+        pairs = [[query, doc.page_content] for doc in raw_results]
+        
+        # Chấm điểm bằng CrossEncoder
+        scores = self.reranker.predict(pairs)
+        
+        # Gắn điểm số vào metadata
+        for doc, score in zip(raw_results, scores):
+            doc.metadata["rerank_score"] = float(score)
+            
+        # Sắp xếp giảm dần theo điểm rerank
+        ranked_results = sorted(raw_results, key=lambda x: x.metadata["rerank_score"], reverse=True)
+        
+        # Lấy top_k kết quả xuất sắc nhất
+        final_results = ranked_results[:top_k]
+        
+        print(f"Đã chọn được Top {len(final_results)} kết quả chuẩn xác nhất:\n")
+        for i, doc in enumerate(final_results):
             source = doc.metadata.get('source', 'Không rõ')
             page = doc.metadata.get('page', '?')
-            print(f" KẾT QUẢ {i+1} (Nguồn: {source} - Trang: {page}) ---")
+            score = doc.metadata.get('rerank_score', 0.0)
+            print(f" KẾT QUẢ {i+1} (Nguồn: {source} - Trang: {page} - Điểm: {score:.4f}) ---")
             print(f"{doc.page_content}\n")
             
-        return results
+        return final_results
