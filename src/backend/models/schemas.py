@@ -3,10 +3,14 @@ from datetime import datetime
 
 class ChatRequest(BaseModel):
     conversation_id: int
-    question: str
+    question: str = Field(..., min_length=1, max_length=4000)
 
 class ChatResponse(BaseModel):
     answer: str
+
+class StatusResponse(BaseModel):
+    status: str
+    message: str
 
 class UserCreate(BaseModel):
     email: str
@@ -29,13 +33,9 @@ class Token(BaseModel):
 class TokenRefresh(BaseModel):
     refresh_token: str
 
-class ForgotPasswordRequest(BaseModel):
-    email: str
-    new_password: str
-
 class ChangePasswordRequest(BaseModel):
     old_password: str
-    new_password: str
+    new_password: str = Field(..., min_length=6, max_length=70)
 
 class UserUpdate(BaseModel):
     full_name: str | None = None
@@ -50,13 +50,13 @@ class DocumentResponse(BaseModel):
 
 class ConversationCreate(BaseModel):
     title: str = "Đoạn chat mới"
-    document_ids: list[int] = [] # Danh sách các file được đính kèm vào cuộc trò chuyện này
+    document_ids: list[int] = Field(default_factory=list)
 
 class ConversationResponse(BaseModel):
     id: int
     title: str
     created_at: datetime
-    documents: list[DocumentResponse] = []
+    documents: list[DocumentResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -71,5 +71,5 @@ class MessageResponse(BaseModel):
         from_attributes = True
 
 class ConversationDetailResponse(ConversationResponse):
-    messages: list[MessageResponse] = []
+    messages: list[MessageResponse] = Field(default_factory=list)
 

@@ -1,6 +1,7 @@
 import urllib.request
 import json
 import ssl
+import os
 
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
@@ -8,7 +9,11 @@ ctx.verify_mode = ssl.CERT_NONE
 
 # 1. Lấy Token
 login_url = "http://localhost:8000/auth/login"
-login_payload = "username=nambo@gmail.com&password=05022004".encode('utf-8')
+test_email = os.getenv("TEST_USER_EMAIL")
+test_password = os.getenv("TEST_USER_PASSWORD")
+if not test_email or not test_password:
+    raise RuntimeError("Hãy khai báo TEST_USER_EMAIL và TEST_USER_PASSWORD")
+login_payload = f"username={test_email}&password={test_password}".encode('utf-8')
 req_login = urllib.request.Request(login_url, data=login_payload, headers={'Content-Type': 'application/x-www-form-urlencoded'})
 
 try:

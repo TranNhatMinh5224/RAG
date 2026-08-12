@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }) => {
             if (token) {
                 try {
                     // Gọi API lấy thông tin profile để xác thực token
-                    const response = await axiosClient.get('/auth/profile');
+                    const response = await axiosClient.get('/auth/me');
                     setUser(response.data);
                 } catch (error) {
                     console.error("Token không hợp lệ hoặc đã hết hạn", error);

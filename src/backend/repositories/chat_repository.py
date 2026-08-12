@@ -57,6 +57,26 @@ class ChatRepository:
         messages.reverse()
         return messages
 
+    async def get_recent_messages_for_user(
+        self,
+        conversation_id: int,
+        user_id: int,
+        limit: int = 5,
+    ) -> list[Message]:
+        result = await self.db.execute(
+            select(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .filter(
+                Message.conversation_id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+        )
+        messages = result.scalars().all()
+        messages.reverse()
+        return messages
+
     async def add_message(self, message: Message) -> Message:
         self.db.add(message)
         await self.db.commit()

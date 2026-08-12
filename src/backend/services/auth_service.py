@@ -1,7 +1,21 @@
 from models.user import User
-from models.schemas import UserCreate
-from core.security import get_password_hash, verify_password
+from models.schemas import ChangePasswordRequest, Token, TokenRefresh, UserCreate, UserUpdate
+from core.security import (
+    ALGORITHM,
+    SECRET_KEY,
+    create_access_token,
+    create_refresh_token,
+    get_password_hash,
+    verify_password,
+)
 from repositories.user_repository import UserRepository
+from services.exceptions import (
+    AuthenticationError,
+    DuplicateEmailError,
+    InvalidPasswordError,
+    InvalidRefreshTokenError,
+)
+import jwt
 
 class AuthService:
     def __init__(self, user_repo: UserRepository):
@@ -18,6 +32,12 @@ class AuthService:
         db_user = User(email=user_data.email, hashed_password=hashed_password)
         return await self.user_repo.add(db_user)
 
+    async def register_user(self, user_data: UserCreate) -> User:
+        existing_user = await self.user_repo.get_by_email(user_data.email)
+        if existing_user:
+            raise DuplicateEmailError
+        return await self.create_user(user_data)
+
     async def authenticate_user(self, email: str, password: str) -> User | bool:
         user = await self.user_repo.get_by_email(email)
         if not user:
@@ -26,11 +46,51 @@ class AuthService:
             return False
         return user
 
+    async def login(self, email: str, password: str) -> Token:
+        auth_user = await self.authenticate_user(email, password)
+        if not auth_user:
+            raise AuthenticationError
+
+        return Token(
+            access_token=create_access_token(data={"sub": auth_user.email}),
+            refresh_token=create_refresh_token(data={"sub": auth_user.email}),
+            token_type="bearer",
+        )
+
+    async def refresh_tokens(self, token_data: TokenRefresh) -> Token:
+        try:
+            payload = jwt.decode(token_data.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+            if payload.get("token_type") != "refresh":
+                raise InvalidRefreshTokenError
+            email: str = payload.get("sub")
+            if email is None:
+                raise InvalidRefreshTokenError
+        except jwt.PyJWTError:
+            raise InvalidRefreshTokenError
+
+        user = await self.user_repo.get_by_email(email)
+        if user is None:
+            raise InvalidRefreshTokenError
+
+        return Token(
+            access_token=create_access_token(data={"sub": user.email}),
+            refresh_token=create_refresh_token(data={"sub": user.email}),
+            token_type="bearer",
+        )
+
     async def update_password(self, user: User, new_password: str) -> User:
         user.hashed_password = get_password_hash(new_password)
         return await self.user_repo.update(user)
+
+    async def change_password(self, user: User, request: ChangePasswordRequest) -> None:
+        if not verify_password(request.old_password, user.hashed_password):
+            raise InvalidPasswordError
+        await self.update_password(user, request.new_password)
 
     async def update_user_info(self, user: User, full_name: str | None) -> User:
         if full_name is not None:
             user.full_name = full_name
         return await self.user_repo.update(user)
+
+    async def update_profile(self, user: User, update_data: UserUpdate) -> User:
+        return await self.update_user_info(user, update_data.full_name)

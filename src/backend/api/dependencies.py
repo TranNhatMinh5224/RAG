@@ -57,8 +57,12 @@ async def get_auth_service(user_repo=Depends(get_user_repo)) -> AuthService:
 async def get_document_service(doc_repo=Depends(get_document_repo), vsm=Depends(get_vector_store)) -> DocumentService:
     return DocumentService(doc_repo, vsm)
 
-async def get_chat_service(chat_repo=Depends(get_chat_repo), doc_repo=Depends(get_document_repo)) -> ChatService:
-    return ChatService(chat_repo, doc_repo)
+async def get_chat_service(
+    chat_repo=Depends(get_chat_repo),
+    doc_repo=Depends(get_document_repo),
+    rag_chain=Depends(get_rag_chain),
+) -> ChatService:
+    return ChatService(chat_repo, doc_repo, rag_chain)
 
 # -- Current User --
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), auth_service: AuthService = Depends(get_auth_service)):
@@ -71,6 +75,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("token_type") != "access":
+            raise credentials_exception
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
@@ -80,6 +86,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
         
     user = await auth_service.get_user_by_email(email)
-    if user is None:
+    if user is None or not user.is_active:
         raise credentials_exception
     return user

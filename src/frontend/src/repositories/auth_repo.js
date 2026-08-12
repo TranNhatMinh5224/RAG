@@ -24,7 +24,7 @@ class AuthRepository {
     }
 
     static async getProfile() {
-        const response = await axiosClient.get('/auth/profile');
+        const response = await axiosClient.get('/auth/me');
         return response.data;
     }
 }

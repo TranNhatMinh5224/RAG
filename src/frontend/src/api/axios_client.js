@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Khởi tạo instance của Axios với URL gốc của Backend
 const axiosClient = axios.create({
-    baseURL: 'http://localhost:8000', // Đổi thành URL production khi deploy
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
     headers: {
         'Content-Type': 'application/json',
     },
