@@ -41,6 +41,26 @@ class AuthService {
             throw new Error("Sai tài khoản hoặc mật khẩu.");
         }
     }
+
+    static async changePassword(oldPassword, newPassword, confirmNewPassword) {
+        if (!oldPassword || !newPassword || !confirmNewPassword) {
+            throw new Error("Vui lòng nhập đầy đủ các trường.");
+        }
+        if (newPassword !== confirmNewPassword) {
+            throw new Error("Mật khẩu mới không khớp!");
+        }
+        if (newPassword.length < 6) {
+            throw new Error("Mật khẩu mới phải chứa ít nhất 6 ký tự!");
+        }
+        try {
+            return await AuthRepository.changePassword(oldPassword, newPassword);
+        } catch (error) {
+            if (error.response && error.response.status === 400) {
+                throw new Error("Mật khẩu cũ không chính xác.");
+            }
+            throw new Error("Lỗi kết nối máy chủ, vui lòng thử lại.");
+        }
+    }
 }
 
 export default AuthService;

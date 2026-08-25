@@ -11,6 +11,8 @@ class Document(Base):
     filename = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(String, default="PROCESSING")
+    error_message = Column(String, nullable=True)
 
     # Mối quan hệ với bảng User
     owner = relationship("User", back_populates="documents")

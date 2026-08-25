@@ -27,3 +27,9 @@ python-pptx
 paddlepaddle
 paddleocr
 opencv-python-headless
+fastembed>=0.2.6
+celery
+pika
+langfuse
+langchain-langfuse
+pydantic-settings

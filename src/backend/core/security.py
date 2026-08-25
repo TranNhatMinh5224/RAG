@@ -1,19 +1,12 @@
-import os
-from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
+from core.config import settings
 
-load_dotenv()
-
-# Bắt buộc phải khai báo trong .env
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError("LỖI BẢO MẬT: Chưa khai báo biến môi trường SECRET_KEY trong file .env!")
-
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
 # Cấu hình Bcrypt để băm mật khẩu
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

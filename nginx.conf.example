@@ -1,0 +1,36 @@
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # Frontend Static Files
+    location / {
+        root /usr/share/nginx/html;
+        index index.html index.htm;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API Proxy to FastAPI Backend
+    location /api/ {
+        proxy_pass http://backend:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SSE Streaming Endpoint (Critical for real-time RAG response)
+    location /api/chat/stream {
+        proxy_pass http://backend:8000/chat/stream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Disable buffering for SSE Streaming
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 600s;
+        proxy_connect_timeout 600s;
+        chunked_transfer_encoding on;
+    }
+}

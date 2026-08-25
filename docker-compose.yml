@@ -5,6 +5,10 @@ services:
     image: qdrant/qdrant:latest
     container_name: rag_qdrant
     restart: always
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_data:/qdrant/storage
 
   backend:
     build:
@@ -22,11 +26,40 @@ services:
     depends_on:
       - qdrant
       - postgres
+      - rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rag_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  celery_worker:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    container_name: rag_celery_worker
+    command: celery -A core.celery_app worker --loglevel=info
+    volumes:
+      - ./src/backend:/app
+      - hf_cache:/root/.cache/huggingface
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - qdrant
+      - postgres
 
   frontend:
     build:
       context: ./src/frontend
       dockerfile: Dockerfile
+      target: development
     container_name: rag_frontend
     command: sh -c "npm install && npm run dev -- --host --force"
     ports:

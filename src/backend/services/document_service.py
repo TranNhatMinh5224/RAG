@@ -12,6 +12,7 @@ from services.exceptions import (
     UploadTooLargeError,
     UnsupportedFileTypeError,
 )
+from core.config import settings
 
 class DocumentService:
     def __init__(self, doc_repo: DocumentRepository, vsm: VectorStoreManager):
@@ -26,10 +27,10 @@ class DocumentService:
         if extension not in valid_extensions:
             raise UnsupportedFileTypeError(valid_extensions)
 
-        upload_dir = Path(os.getenv("UPLOAD_DIR", "/app/data")).resolve()
+        upload_dir = Path(settings.UPLOAD_DIR).resolve()
         upload_dir.mkdir(parents=True, exist_ok=True)
         file_path = upload_dir / f"{current_user.id}_{uuid4().hex}{extension}"
-        max_bytes = int(os.getenv("MAX_UPLOAD_SIZE_MB", "25")) * 1024 * 1024
+        max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
         bytes_written = 0
 
         try:
@@ -49,8 +50,9 @@ class DocumentService:
             # Gọi Repository lưu DB
             new_doc = await self.doc_repo.add(new_doc)
             
-            # Đưa vào Qdrant
-            await self.vsm.ingest_document_async(file_path, user_id=current_user.id, document_id=new_doc.id)
+            # Gửi task vào RabbitMQ cho Celery Worker xử lý ngầm (Non-blocking)
+            from worker.tasks import ingest_document_task
+            ingest_document_task.delay(str(file_path), current_user.id, new_doc.id)
             
             return new_doc
         except Exception as e:
@@ -73,7 +75,7 @@ class DocumentService:
             os.remove(doc.file_path)
             
         try:
-            self.vsm.delete_document(document_id=doc.id)
+            await self.vsm.delete_document(document_id=doc.id)
         except Exception as e:
             print(f"Lỗi xóa Qdrant: {e}")
             

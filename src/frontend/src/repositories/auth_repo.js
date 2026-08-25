@@ -27,6 +27,11 @@ class AuthRepository {
         const response = await axiosClient.get('/auth/me');
         return response.data;
     }
+
+    static async changePassword(old_password, new_password) {
+        const response = await axiosClient.put('/auth/change-password', { old_password, new_password });
+        return response.data;
+    }
 }
 
 export default AuthRepository;

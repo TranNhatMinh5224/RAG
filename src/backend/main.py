@@ -4,10 +4,7 @@ from core.database import engine, Base
 import models.user
 import models.document
 import models.chat
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from core.config import settings
 
 app = FastAPI(
     title="RAG Chatbot API - Clean Architecture",
@@ -25,7 +22,7 @@ async def startup_event():
 
 
 
-allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+allowed_origins_str = settings.ALLOWED_ORIGINS
 allowed_origins = [url.strip() for url in allowed_origins_str.split(",") if url.strip()]
 
 if not allowed_origins:

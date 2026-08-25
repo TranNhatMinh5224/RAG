@@ -1,19 +1,24 @@
 import os
+import asyncio
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_qdrant import QdrantVectorStore
+from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, VectorParams
+from qdrant_client.http.models import Distance, VectorParams, SparseVectorParams
 from qdrant_client.http import models
 from services.document_processor import DocumentProcessor
+from core.config import settings
 
 class VectorStoreManager:
     def __init__(self, collection_name="document_qna"):
         self.collection_name = collection_name
-        self.qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
+        self.qdrant_url = settings.QDRANT_URL
         
         print("Đang tải mô hình Embedding BAAI/bge-m3...")
         # Mô hình BAAI/bge-m3 xuất sắc cho tiếng Việt, có dimension = 1024
         self.embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-m3")
+        
+        print("Đang tải mô hình Sparse Embedding (BM25)...")
+        self.sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
         
         print(f"Đang kết nối tới Qdrant tại {self.qdrant_url}...")
         self.client = QdrantClient(url=self.qdrant_url)
@@ -25,10 +30,13 @@ class VectorStoreManager:
         exists = any(col.name == self.collection_name for col in collections)
         
         if not exists:
-            print(f"Khởi tạo Collection mới: {self.collection_name}")
+            print(f"Khởi tạo Collection mới: {self.collection_name} (Hỗ trợ Hybrid Search)")
             self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
+                sparse_vectors_config={
+                    "text-sparse": models.SparseVectorParams()
+                }
             )
         else:
             print(f"Collection '{self.collection_name}' đã tồn tại, tiếp tục sử dụng.")
@@ -37,7 +45,10 @@ class VectorStoreManager:
         self.vector_store = QdrantVectorStore(
             client=self.client, 
             collection_name=self.collection_name, 
-            embedding=self.embeddings
+            embedding=self.embeddings,
+            sparse_embedding=self.sparse_embeddings,
+            sparse_vector_name="text-sparse",
+            retrieval_mode=RetrievalMode.HYBRID
         )
 
     async def ingest_document_async(self, file_path: str, user_id: int, document_id: int):
@@ -45,7 +56,8 @@ class VectorStoreManager:
         
         # Tiêm Embeddings vào DocumentProcessor để chạy Semantic Chunking
         processor = DocumentProcessor(self.embeddings)
-        chunks = processor.process_file(file_path)
+        # Bọc vào to_thread để tránh OCR làm treo server
+        chunks = await asyncio.to_thread(processor.process_file, file_path)
         
         texts = []
         metadatas = []
@@ -62,20 +74,24 @@ class VectorStoreManager:
         await self.vector_store.aadd_texts(texts=texts, metadatas=metadatas)
         print("Hoàn tất lưu trữ! Dữ liệu đã sẵn sàng để truy vấn.")
 
-    def delete_document(self, document_id: int):
-        """Xóa toàn bộ Vector của một File PDF khỏi Qdrant (Dùng Sync vì QdrantClient hiện tại là Sync)"""
+    async def delete_document(self, document_id: int):
+        """Xóa toàn bộ Vector của một File PDF khỏi Qdrant (Dùng Bất đồng bộ)"""
         print(f"Đang xóa các Vector có document_id = {document_id} khỏi Qdrant...")
-        self.client.delete(
-            collection_name=self.collection_name,
-            points_selector=models.FilterSelector(
-                filter=models.Filter(
-                    must=[
-                        models.FieldCondition(
-                            key="metadata.document_id",
-                            match=models.MatchValue(value=document_id)
-                        )
-                    ]
+        
+        def _delete():
+            self.client.delete(
+                collection_name=self.collection_name,
+                points_selector=models.FilterSelector(
+                    filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="metadata.document_id",
+                                match=models.MatchValue(value=document_id)
+                            )
+                        ]
+                    )
                 )
             )
-        )
+            
+        await asyncio.to_thread(_delete)
         print(f" Đã xóa sạch dữ liệu Vector của document_id {document_id}")

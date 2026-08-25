@@ -7,6 +7,7 @@ import os
 import numpy as np
 from paddleocr import PaddleOCR
 from langchain_experimental.text_splitter import SemanticChunker
+from src.backend.services.legal_parser import LegalDocumentParser
 
 class DocumentProcessor:
     def __init__(self, embeddings):
@@ -21,8 +22,15 @@ class DocumentProcessor:
         self.ocr = PaddleOCR(use_angle_cls=True, lang='vi', show_log=False)
 
     def clean_text(self, text: str) -> str:
-        # Xóa bỏ các khoảng trắng thừa, dấu xuống dòng liên tiếp
+        # 1. Nối lại các từ bị gãy ở cuối dòng do dấu gạch nối (Ví dụ: "trách nhi- \n ệm")
+        text = re.sub(r'(\w+)-\s+(\w+)', r'\1\2', text)
+        
+        # 2. Xóa các ký tự Unicode rác (tránh làm nhiễu mô hình Embedding)
+        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', text)
+        
+        # 3. Gom các khoảng trắng, dấu tab, dấu xuống dòng liên tiếp thành 1 dấu cách
         text = re.sub(r'\s+', ' ', text)
+        
         return text.strip()
 
     def process_pdf(self, file_path: str):
@@ -125,21 +133,40 @@ class DocumentProcessor:
 
         chunks_with_metadata = []
 
-        for data in pages_data:
-            cleaned_text = self.clean_text(data["text"])
+        # Kiểm tra nhanh xem đây có phải là văn bản pháp luật không (Chứa "Điều 1.", "Điều 2.")
+        full_document_text = "\n".join([self.clean_text(d["text"]) for d in pages_data])
+        is_legal_doc = bool(re.search(r'^Điều\s+\d+[\.:]?', full_document_text, re.MULTILINE | re.IGNORECASE))
+        
+        if is_legal_doc and file_ext in [".pdf", ".docx"]:
+            print("Phát hiện văn bản Pháp luật -> Kích hoạt LegalDocumentParser")
+            parser = LegalDocumentParser({"title": os.path.basename(file_path), "source": os.path.basename(file_path)})
+            legal_docs = parser.parse(full_document_text)
             
-            # SemanticChunker cắt dựa trên câu và gom nhóm ý nghĩa
-            page_chunks = self.text_splitter.split_text(cleaned_text)
-            
-            for chunk in page_chunks:
-                if len(chunk.strip()) > 10: # Chỉ lấy các đoạn có nội dung thực tế
+            for doc in legal_docs:
+                if len(doc.page_content.strip()) > 10:
                     chunks_with_metadata.append({
-                        "content": chunk,
-                        "metadata": {
-                            "source": os.path.basename(file_path),
-                            "page": data["page"]
-                        }
+                        "content": doc.page_content,
+                        "metadata": doc.metadata
                     })
+            print(f" Legal Chunking hoàn tất: Tạo ra {len(chunks_with_metadata)} khối theo cấu trúc Điều/Khoản.")
+        else:
+            print("Văn bản thông thường -> Sử dụng SemanticChunker")
+            for data in pages_data:
+                cleaned_text = self.clean_text(data["text"])
                 
-        print(f" Semantic Chunking hoàn tất: Tạo ra {len(chunks_with_metadata)} khối ý nghĩa từ tài liệu.")
+                # SemanticChunker cắt dựa trên câu và gom nhóm ý nghĩa
+                page_chunks = self.text_splitter.split_text(cleaned_text)
+                
+                for chunk in page_chunks:
+                    if len(chunk.strip()) > 10: # Chỉ lấy các đoạn có nội dung thực tế
+                        chunks_with_metadata.append({
+                            "content": chunk,
+                            "metadata": {
+                                "source": os.path.basename(file_path),
+                                "page": data["page"]
+                            }
+                        })
+                    
+            print(f" Semantic Chunking hoàn tất: Tạo ra {len(chunks_with_metadata)} khối ý nghĩa từ tài liệu.")
+            
         return chunks_with_metadata

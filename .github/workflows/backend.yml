@@ -1,0 +1,41 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    # Workflow này CHỈ chạy khi có code thay đổi trong thư mục backend hoặc file docker-compose
+    paths:
+      - 'src/backend/**'
+      - 'docker-compose.yml'
+      - 'docker-compose.prod.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v3
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and Push Backend Image
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/legal-rag-backend:latest ./src/backend
+        docker push ${{ secrets.DOCKER_USERNAME }}/legal-rag-backend:latest
+
+    - name: Deploy Backend to AWS EC2
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd ~/legal-rag-project
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+          docker image prune -f

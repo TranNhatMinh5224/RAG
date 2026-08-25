@@ -41,5 +41,6 @@ qdrant_prod_data/
 .idea/
 *.swp
 *.swo
+*.ui-ux-pro-max-skill
 .DS_Store
 Thumbs.db

@@ -188,10 +188,51 @@ class ChatService:
             user_id=user_id,
             document_ids=document_ids,
             chat_history=chat_history,
+            conversation_id=conversation_id,
         )
 
         await self.save_message(conversation_id, role="ai", content=answer)
         return answer
+
+    async def chat_stream_with_document(
+        self,
+        user_id: int,
+        conversation_id: int,
+        question: str,
+        history_limit: int = 5,
+    ):
+        if self.rag_chain is None:
+            raise RuntimeError("RAG chain is not configured")
+
+        chat_context = await self.prepare_chat_context(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            history_limit=history_limit,
+        )
+        if chat_context is None:
+            raise ConversationNotFoundError
+
+        document_ids, chat_history = chat_context
+        if not document_ids:
+            raise ConversationHasNoDocumentsError
+
+        # Lưu câu hỏi của người dùng
+        await self.save_message(conversation_id, role="user", content=question)
+
+        full_answer = ""
+        # Đọc dữ liệu stream từ Langchain
+        async for chunk in self.rag_chain.answer_question_stream(
+            question=question,
+            user_id=user_id,
+            document_ids=document_ids,
+            chat_history=chat_history,
+            conversation_id=conversation_id,
+        ):
+            full_answer += chunk
+            yield chunk
+
+        # Lưu toàn bộ câu trả lời của AI vào DB khi stream kết thúc
+        await self.save_message(conversation_id, role="ai", content=full_answer)
 
     async def get_conversation_history_str(
         self,

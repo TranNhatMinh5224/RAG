@@ -35,6 +35,48 @@ class ChatRepository {
         });
         return response.data;
     }
+
+    static async sendMessageStream(conversationId, query, onChunk, onError, onComplete) {
+        const baseURL = axiosClient.defaults.baseURL || 'http://localhost:8000';
+        const token = localStorage.getItem('access_token');
+
+        try {
+            const response = await fetch(`${baseURL}/chat/stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    conversation_id: conversationId,
+                    question: query
+                })
+            });
+
+            if (!response.ok) {
+                const errJson = await response.json().catch(() => ({}));
+                throw new Error(errJson.detail || `Lỗi kết nối máy chủ (${response.status})`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                if (chunk && onChunk) {
+                    onChunk(chunk);
+                }
+            }
+
+            if (onComplete) onComplete();
+        } catch (err) {
+            if (onError) onError(err);
+            else throw err;
+        }
+    }
 }
 
 export default ChatRepository;
+

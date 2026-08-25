@@ -54,6 +54,14 @@ class ChatService {
             throw new Error("Hệ thống AI đang quá tải hoặc có lỗi xảy ra.");
         }
     }
+
+    static async askAIStream(conversationId, question, onChunk, onError, onComplete) {
+        if (!question.trim()) {
+            throw new Error("Vui lòng nhập câu hỏi.");
+        }
+        return await ChatRepository.sendMessageStream(conversationId, question, onChunk, onError, onComplete);
+    }
 }
 
 export default ChatService;
+

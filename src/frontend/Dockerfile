@@ -1,15 +1,29 @@
-FROM node:20-alpine
-
+# =========================================
+# STAGE 1: Development (Vite Dev Server)
+# =========================================
+FROM node:20-alpine AS development
 WORKDIR /app
-
-# Copy package.json and install dependencies
-# We will create package.json using Vite later, so this will only run if package.json exists.
-# We mount code as volume and run dev server.
-
 COPY package*.json ./
-RUN if [ -f package.json ]; then npm install; fi
-
+RUN npm install
+COPY . .
 EXPOSE 5173
-
-# Chạy server Vite, expose ra host
 CMD ["npm", "run", "dev", "--", "--host"]
+
+# =========================================
+# STAGE 2: Build (Biên dịch React + Vite thành file tĩnh)
+# =========================================
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# =========================================
+# STAGE 3: Production (Nginx Web Server - Bỏ hoàn toàn Node.js/Vite ở runtime)
+# =========================================
+FROM nginx:alpine AS production
+# Copy file tĩnh vừa được biên dịch vào thư mục chứa web của Nginx
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

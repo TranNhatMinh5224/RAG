@@ -6,11 +6,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-import os
-from dotenv import load_dotenv
-
-# Load biến môi trường từ .env
-load_dotenv()
+from core.config import settings
 
 # Import Base và TẤT CẢ các Models để Alembic nhận diện cấu trúc bảng
 from core.database import Base
@@ -27,7 +23,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def get_url():
-    return os.getenv("DATABASE_URL")
+    return settings.DATABASE_URL
 
 def run_migrations_offline() -> None:
     url = get_url()

@@ -1,4 +1,4 @@
-# 🚀 Enterprise AI RAG - Hệ Thống Truy Vấn Tài Liệu Cục Bộ Thông Minh
+# 🚀 Enterprise AI Legal RAG - Trợ Lý Pháp Lý AI Tự Chủ (Agentic RAG)
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688?logo=fastapi&logoColor=white)
@@ -9,7 +9,7 @@
 ![PaddleOCR](https://img.shields.io/badge/PaddleOCR-PP_OCRv4-blue)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
 
-**Enterprise AI RAG** là hệ thống giải pháp cho phép người dùng và doanh nghiệp giao tiếp trực tiếp với kho tài liệu nội bộ (PDF, Word, Excel, PowerPoint) một cách bảo mật, chính xác và loại bỏ hoàn toàn tình trạng "ảo giác" (hallucination) của AI. 
+**Enterprise AI Legal RAG** là hệ thống giải pháp cho phép người dùng và doanh nghiệp giao tiếp trực tiếp với kho tài liệu Pháp lý nội bộ (Luật, Nghị định, Hợp đồng...) một cách bảo mật, chính xác tuyệt đối và loại bỏ hoàn toàn "ảo giác" (hallucination) của AI nhờ kiến trúc Agentic. 
 
 Dự án áp dụng kiến trúc **Retrieval-Augmented Generation (RAG)** tiên tiến, lấy cảm hứng từ luồng trải nghiệm của **Google NotebookLM**, cho phép người dùng tự do tuỳ biến "Vùng tri thức" cho từng cuộc trò chuyện.
 
@@ -49,15 +49,13 @@ Hệ thống được thiết kế theo kiến trúc Microservices tinh gọn, d
 - Quản lý phân quyền, đổi mật khẩu, quên mật khẩu và thông tin cá nhân.
 - Mật khẩu được băm (hash) an toàn.
 
-### 📂 Quản lý Tài liệu Đa định dạng
+### 📂 Quản lý Tài liệu Đa định dạng & Cấu trúc Pháp lý
 - Hỗ trợ đa dạng file: `.pdf`, `.docx`, `.xlsx`, `.pptx`, `.png`, `.jpg`.
-- Thuật toán trích xuất linh hoạt: 
-  - Đọc text theo trang (PDF điện tử).
-  - Tích hợp **PaddleOCR** làm Fallback tự động trích xuất chữ từ Hình ảnh và các bản PDF Scan.
-  - Đọc text theo đoạn (Word).
-  - Tự động chuyển đổi bảng dữ liệu thành Markdown (Excel) giúp AI đọc hiểu xuất sắc.
-  - Đọc text theo từng Slide (PowerPoint).
-- Xóa tài liệu đồng bộ: Xóa file khỏi Database và dọn sạch Vector Embeddings tương ứng trên Qdrant.
+- Thuật toán trích xuất linh hoạt & Thông minh: 
+  - **Hierarchical Legal Parsing:** Tự động nhận diện văn bản Luật, cắt (chunking) theo cấu trúc `Chương -> Điều -> Khoản` giữ nguyên ngữ cảnh cha.
+  - Tích hợp **PaddleOCR** làm Fallback tự động trích xuất chữ từ Hình ảnh và bản Scan.
+  - Tự động chuyển đổi bảng dữ liệu thành Markdown (Excel).
+- Xóa tài liệu đồng bộ: Xóa file khỏi Database và dọn sạch Vector Embeddings.
 
 ### 💬 Quản lý Cuộc trò chuyện "NotebookLM Style"
 - Mỗi cuộc trò chuyện độc lập đều có thể được **đính kèm** với một danh sách các tài liệu (Document IDs) cụ thể.
@@ -71,22 +69,20 @@ Hệ thống được thiết kế theo kiến trúc Microservices tinh gọn, d
 Dự án triển khai một Pipeline RAG cực kỳ chặt chẽ với 3 giai đoạn:
 
 ### Giai đoạn 1: Ingestion Pipeline (Nạp & Tiền xử lý dữ liệu)
-- **Trích xuất Đa luồng:** Kết hợp PyMuPDF cho tài liệu số và **PaddleOCR** cho ảnh/tài liệu scan để vét cạn văn bản.
-- **Làm sạch:** Tự động xoá khoảng trắng, dấu xuống dòng thừa.
-- **Semantic Chunking:** Không cắt văn bản cơ học theo số chữ. Sử dụng `SemanticChunker` (ngưỡng phân vị 80%) kết hợp mô hình Embedding để tính toán sự thay đổi ngữ nghĩa. Khối văn bản (Chunk) chỉ được cắt khi ý nghĩa chuyển sang một hướng khác, đảm bảo độ trọn vẹn của thông tin.
-- **Embedding & Vector Storage:** Nén chunks qua mô hình `BAAI/bge-m3` (tiếng Việt xuất sắc) và lưu vào Qdrant cùng với Metadata chi tiết (`source`, `page`, `user_id`, `document_id`).
+- **Trích xuất Đa luồng:** Kết hợp PyMuPDF cho tài liệu số và **PaddleOCR** cho ảnh/scan.
+- **Hierarchical Legal Chunking:** Tự động phát hiện văn bản Pháp lý, cắt đoạn thông minh bằng Regex giữ nguyên cấu trúc `Chương > Điều > Khoản`. Với tài liệu thường, fallback về `SemanticChunker` (ngưỡng phân vị 80%).
+- **Embedding & Vector Storage:** Nén chunks qua mô hình `BAAI/bge-m3` và lưu vào Qdrant cùng Metadata (`source`, `page`, `chuong`, `dieu`).
 
-### Giai đoạn 2: Retrieval Pipeline (Truy xuất dữ liệu - Cấp độ Advanced)
-- **Query Rewriting (Chuẩn hóa câu hỏi):** Sử dụng LLM để đọc lịch sử trò chuyện và tự động viết lại câu hỏi gốc của người dùng thành một câu truy vấn rõ nghĩa, độc lập ngữ cảnh (Ví dụ: "Vậy khoản 2 nói gì?" -> "Khoản 2 của hợp đồng lao động năm 2023 nói gì?"). Tránh hoàn toàn việc RAG bị mất ngữ cảnh.
-- **Hard-Filtering:** Sử dụng cơ chế Filter của Qdrant. Hệ thống sẽ bắt buộc truy vấn phải khớp với `user_id` hiện tại VÀ nằm trong mảng `document_ids` đang đính kèm vào cuộc trò chuyện.
-- **Hybrid Search:** Kết hợp song song tìm kiếm theo Ngữ nghĩa (Dense Vector với mô hình `bge-m3`) và tìm kiếm Từ khóa chính xác (Sparse Vector theo thuật toán BM25). Quét và lấy ra Top 15 đoạn văn bản tiềm năng nhất.
-- **Re-ranking (Cross-Encoder):** Đưa 15 đoạn văn bản thô qua mô hình "giám khảo" độc lập `BAAI/bge-reranker-v2-m3` để chấm điểm lại mức độ phù hợp một cách cực kỳ khắt khe, sau đó lọc ra đúng Top 3 kết quả tinh hoa nhất để đưa cho LLM.
+### Giai đoạn 2: Retrieval Pipeline (Truy xuất - Cấp độ Agentic)
+- **Self-Query Retriever & Rewriting:** Dùng Pydantic bắt LLM phân tích câu hỏi, vừa chuẩn hóa câu hỏi độc lập, vừa tự động trích xuất Metadata (Ví dụ: năm ban hành, loại văn bản) để biến thành **Hard-Filters** ép xuống Qdrant.
+- **Hybrid Search:** Kết hợp tìm kiếm Ngữ nghĩa (Dense Vector) và Từ khóa (BM25) quét top 15 kết quả thô.
+- **Re-ranking (Cross-Encoder):** Đưa qua "giám khảo" `BAAI/bge-reranker-v2-m3` lọc ra Top 3 kết quả tinh hoa nhất.
+- **Cross-Reference Agent (Truy xuất đệ quy):** AI kiểm tra Top 3 kết quả xem có chứa tham chiếu chéo (VD: "Theo khoản 2 Điều X") mà nội dung bị thiếu không. Nếu thiếu, hệ thống tự động sinh luồng tìm kiếm lần 2 (Second-hop) để lấy thêm tài liệu đắp vào ngữ cảnh trước khi trả lời.
 
 ### Giai đoạn 3: Generation Pipeline (Sinh câu trả lời)
-- **Format Context:** Tiêm metadata vào ngữ cảnh (`Tài liệu [Nguồn: ... - Trang: ...]`).
-- **Memory Load:** Truy xuất 5 tin nhắn gần nhất để AI hiểu ngữ cảnh trò chuyện liên tục.
-- **Prompt Engineering chống Ảo giác:** Lệnh bắt buộc AI trả lời "Tôi không tìm thấy thông tin" nếu dữ liệu không khớp. Bắt buộc để lại Trích dẫn ở cuối mỗi câu trả lời.
-- **LLM Call:** Gửi tới Gemini 2.5 Flash để sinh văn bản phản hồi tự nhiên.
+- **Format Context:** Tiêm cấu trúc cây (Chương/Điều) vào ngữ cảnh để AI hiểu toàn cục.
+- **Prompt Engineering chống Ảo giác:** Bắt buộc AI trả lời "Không tìm thấy" nếu dữ liệu không khớp, phải đính kèm Trích dẫn ở cuối mỗi câu.
+- **LLM Call:** Gửi tới Gemini 2.5 Flash để sinh văn bản phản hồi hoàn thiện dựa trên cả tài liệu gốc và tài liệu tham chiếu chéo.
 
 ---
 
