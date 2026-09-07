@@ -1,12 +1,13 @@
 from celery import Celery
 from core.config import settings
 
-# URL kết nối mặc định của RabbitMQ
-RABBITMQ_URL = settings.RABBITMQ_URL
+# URL kết nối Redis (Hỗ trợ redis:// cục bộ và rediss:// TLS trên AWS ElastiCache)
+REDIS_URL = settings.REDIS_URL or settings.RABBITMQ_URL
 
 celery_app = Celery(
     "rag_tasks",
-    broker=RABBITMQ_URL,
+    broker=REDIS_URL,
+    backend=REDIS_URL,
     include=["worker.tasks"]
 )
 

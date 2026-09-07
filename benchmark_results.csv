@@ -1,0 +1,33 @@
+﻿ID,Level,Question,Ground Truth,Is Trap,RAG Answer,Verdict,Score,Latency (s),Judge Reason
+1,Level 1 (Factual),Tên chính xác của đề tài nghiên cứu được đề xuất trong tài liệu là gì?,Ứng dụng Deep Learning trong học biểu diễn cho dữ liệu y tế phân mảnh.,False,"Tên chính xác của đề tài nghiên cứu được đề xuất trong tài liệu là ""Ứng dụng Deep Learning trong học biểu diễn cho dữ liệu y tế phn mảnh"" [Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1].",PASS,10.0,60.92,"Câu trả lời chính xác và trung thực, bao gồm cả tên đề tài và trích dẫn nguồn. Không có dấu hiệu của bịa đặt thông tin."
+2,Level 1 (Factual),Báo cáo đề cập đến những hệ thống phần mềm quản lý y tế phổ biến nào trong bệnh viện?,"HIS (Hospital Information System), LIS (Laboratory Information System), RIS/PACS, EMR (Electronic Medical Record) và hệ thống theo dõi bệnh nhân/thiết bị y tế.",False,"Báo cáo đề cập đến ba hệ thống phần mềm quản lý y tế phổ biến trong bệnh viện, bao gồm:
+
+1. HIS (Hospital Information System): Hệ thống quản lý hoạt động khám chữa bệnh của bệnh viện.
+2. LIS (Laboratory Information System): Hệ thống quản lý xét nghiệm.
+3. RIS/PACS (Radiology Information System/ Picture Archiving and Communication System): Hệ thống quản lý chẩn đoán hình ảnh.
+
+[Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1]",PASS,10.0,113.18,"Câu trả lời bao gồm tất cả các hệ thống phần mềm quản lý y tế được đề cập trong chuẩn đáp án, không sai lệch và có trích dẫn nguồn."
+3,Level 1 (Factual),Hệ thống HIS viết tắt của cụm từ tiếng Anh nào và quản lý những loại thông tin gì?,"Hospital Information System. Quản lý thông tin bệnh nhân, lượt khám, nhập viện, khoa/phòng điều trị, dịch vụ, viện phí, đơn thuốc.",False,"Hệ thống HIS viết tắt của cụm từ tiếng Anh ""Hospital Information System"". Hệ thống này quản lý các loại thông tin bao gồm: thông tin bệnh nhân, lượt khám, nhập viện, khoa điều trị, dịch vụ, viện phí, đơn thuốc [Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1].",PASS,10.0,77.12,"Câu trả lời chính xác và đầy đủ, bao gồm cả viết tắt của cụm từ tiếng Anh và các loại thông tin được quản lý. Đồng thời, có trích dẫn nguồn, không có sai lệch hoặc thiếu sót."
+4,Level 1 (Factual),Hệ thống LIS viết tắt của cụm từ gì và lưu trữ những kết quả xét nghiệm nào?,"Laboratory Information System. Lưu kết quả xét nghiệm máu, nước tiểu, đường huyết, công thức máu, chức năng gan, thận, sinh hóa, vi sinh...",False,"Hệ thống LIS viết tắt của cụm từ Laboratory Information System. Hệ thống này lưu trữ kết quả các xét nghiệm như xét nghiệm máu, nước tiểu, sinh hóa, huyết học, vi sinh và các chỉ số xét nghiệm khác [Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1].",PASS,10.0,60.85,"Câu trả lời của hệ thống RAG đã chính xác phản ánh chuẩn đáp án, bao gồm cả viết tắt của cụm từ LIS và các loại kết quả xét nghiệm được lưu trữ. Đồng thời, câu trả lời cũng đã trích dẫn nguồn, đáp ứng đầy đủ các tiêu chí của một câu trả lời đúng."
+5,Level 1 (Factual),Hệ thống RIS/PACS quản lý loại dữ liệu y khoa nào?,"Quản lý chẩn đoán hình ảnh: ảnh X-quang, CT, MRI, siêu âm và kết quả đọc ảnh của bác sĩ.",False,"Hệ thống RIS/PACS quản lý dữ liệu về chẩn đoán hình ảnh. Cụ thể, hệ thống này lưu trữ và quản lý các dữ liệu chẩn đoán hình ảnh như ảnh X-quang, CT, MRI, siêu âm và các hình ảnh y khoa khác, phục vụ cho việc xem và chẩn đoán của bác sĩ [Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1].",PASS,10.0,57.73,"Câu trả lời bao gồm đầy đủ các loại dữ liệu chẩn đoán hình ảnh được đề cập trong chuẩn đáp án, không sai lệch và có trích dẫn nguồn."
+6,Level 1 (Factual),Bệnh án điện tử EMR lưu lại những quá trình điều trị nào của người bệnh?,"Lưu quá trình điều trị, tiền sử bệnh, chẩn đoán, thuốc sử dụng, chỉ định điều trị, thủ thuật, diễn biến bệnh và kết quả điều trị.",False,"Bệnh án điện tử EMR lưu lại một số quá trình điều trị quan trọng của người bệnh, bao gồm:
+
+- Tiền sử bệnh
+- Chẩn đoán
+- Thuốc được sử dụng
+- Chỉ định điều trị
+- Diễn biến bệnh
+- Kết quả điều trị
+
+[Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1]",PASS,8.0,37.22,"Câu trả lời bao gồm các ý chính trong chuẩn đáp án, chỉ thiếu thông tin về 'thuốc sử dụng' và 'chỉ định điều trị', nhưng vẫn phản ánh được nội dung chính của bệnh án EMR. Không có sai lệch hoặc bịa đặt thông tin."
+7,Level 1 (Factual),Các thiết bị y tế theo dõi bệnh nhân thường ghi nhận liên tục những dấu hiệu sinh tồn nào?,"Nhịp tim, huyết áp, SpO2, nhịp thở, nhiệt độ cơ thể.",False,"Các thiết bị y tế theo dõi bệnh nhân thường ghi nhận liên tục các dấu hiệu sinh tồn như nhịp tim, huyết áp, SpO₂ (tỷ lệ oxy trong máu) [Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1].",PASS,10.0,34.67,"Câu trả lời bao gồm tất cả các dấu hiệu sinh tồn được đề cập trong chuẩn đáp án và có trích dẫn nguồn, phù hợp với tiêu chí của một câu trả lời chính xác và đầy đủ."
+8,Level 1 (Factual),"Trước khi số hóa, phần lớn thông tin khám chữa bệnh được lưu trữ trên những phương tiện gì?","Ghi trên giấy, sổ khám bệnh, phiếu xét nghiệm và phim chụp.",False,"Trước khi số hóa, phần lớn thông tin khám chữa bệnh được ghi trên giấy, sổ khám bệnh, phiếu xét nghiệm và phim chụp [Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1].",PASS,8.0,34.19,"Câu trả lời bao gồm tất cả các ý chính trong chuẩn đáp án và có trích dẫn nguồn, đáp ứng yêu cầu của tiêu chí Đúng (PASS). Tuy nhiên, điểm số không đạt 10 do có phần lặp lại thông tin trong câu trả lời."
+9,Level 1 (Factual),Tài liệu chia dữ liệu y tế thành mấy dạng chính? Kể tên các dạng đó.,"4 dạng: Dữ liệu dạng bảng, Dữ liệu chuỗi thời gian, Dữ liệu văn bản, Dữ liệu hình ảnh.",False,"Tài liệu chia dữ liệu y tế thành bốn dạng chính, bao gồm:
+
+1. Dữ liệu dạng bảng: bao gồm thông tin như tuổi, giới tính, chẩn đoán, xét nghiệm, thuốc.
+2. Dữ liệu chuỗi thời gian: bao gồm nhịp tim, huyết áp, SpO₂ được ghi nhận liên tục từ thiết bị theo dõi.
+3. Dữ liệu văn bản: bao gồm ghi chú lâm sàng, mô tả bệnh, kết luận của bác sĩ.
+4. Dữ liệu hình ảnh: bao gồm X-quang, CT, MRI, siêu âm.
+
+[Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1]",PASS,10.0,50.88,Câu trả lời của hệ thống RAG đã bao gồm đúng 4 dạng dữ liệu y tế như trong chuẩn đáp án và có trích dẫn nguồn cụ thể. Không có sai lệch hoặc thiếu sót đáng kể.
+10,Level 1 (Factual),"Tuổi, giới tính, kết quả xét nghiệm, thuốc thuộc dạng dữ liệu y tế nào?",Dữ liệu dạng bảng (tabular data).,False,"Tuổi, giới tính, kết quả xét nghiệm, thuốc thuộc dạng dữ liệu dạng bảng [Nguồn: 2_733f7a563f474bd69fdbfad9459ccc89.docx - Trang 1].",PASS,8.0,30.65,"Câu trả lời đúng trọng tâm và chứa thông tin chính xác, đồng thời trích dẫn nguồn. Tuy nhiên, điểm số không đạt 10 do thiếu giải thích rõ ràng về lý do tại sao dữ liệu được mô tả là dạng bảng."

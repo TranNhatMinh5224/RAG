@@ -35,11 +35,21 @@ const GlassBadge = ({ filename, status = 'READY', onClick, onRemove, active = fa
     }
   };
 
+  const cleanDisplayName = (name) => {
+    if (!name) return 'Tài liệu';
+    let cleaned = name.replace(/^\d+_[a-f0-9]{16,}\.?/i, '');
+    if (cleaned.startsWith('.')) cleaned = 'Tài_liệu' + cleaned;
+    cleaned = cleaned.replace(/^\d+_/, '').replace(/_/g, ' ');
+    return cleaned || name;
+  };
+
+  const displayName = cleanDisplayName(filename);
   const cfg = getStatusConfig();
 
   return (
     <div
       onClick={onClick}
+      title={filename}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -60,7 +70,7 @@ const GlassBadge = ({ filename, status = 'READY', onClick, onRemove, active = fa
     >
       {cfg.icon}
       <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {filename}
+        {displayName}
       </span>
       {onRemove && (
         <span

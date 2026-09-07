@@ -13,6 +13,7 @@ from core.database import Base
 from models.user import User
 from models.document import Document
 from models.chat import Conversation, Message, ConversationDocument
+from models.activity_log import ActivityLog
 
 # config object
 config = context.config
@@ -23,7 +24,14 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def get_url():
-    return settings.DATABASE_URL
+    url = settings.DATABASE_URL
+    if "@postgres:" in url:
+        import socket
+        try:
+            socket.gethostbyname("postgres")
+        except socket.gaierror:
+            url = url.replace("@postgres:", "@localhost:")
+    return url
 
 def run_migrations_offline() -> None:
     url = get_url()

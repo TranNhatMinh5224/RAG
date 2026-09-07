@@ -5,21 +5,41 @@ from pptx import Presentation
 import re
 import os
 import numpy as np
-from paddleocr import PaddleOCR
+try:
+    from paddleocr import PaddleOCR
+except ImportError:
+    PaddleOCR = None
+
 from langchain_experimental.text_splitter import SemanticChunker
-from src.backend.services.legal_parser import LegalDocumentParser
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+try:
+    from services.legal_parser import LegalDocumentParser
+except ImportError:
+    from src.backend.services.legal_parser import LegalDocumentParser
 
 class DocumentProcessor:
     def __init__(self, embeddings):
-        """Khởi tạo với Semantic Chunker - Cắt văn bản dựa trên ý nghĩa ngữ nghĩa"""
-        # Sử dụng model embeddings để tính độ tương đồng giữa các câu
+        """Khởi tạo với Recursive Splitter (cắt theo cấu trúc) và Semantic Chunker"""
+        self.recursive_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=900,
+            chunk_overlap=120,
+            separators=["\n\n", "\n", ". ", " ", ""]
+        )
         self.text_splitter = SemanticChunker(
             embeddings,
-            breakpoint_threshold_type="percentile", # Cắt khi sự thay đổi ngữ nghĩa vượt mức phân vị
-            breakpoint_threshold_amount=80 # Cắt ở top 20% những câu có sự khác biệt lớn nhất về ý nghĩa
+            breakpoint_threshold_type="percentile",
+            breakpoint_threshold_amount=80
         )
-        print("Đang khởi tạo PaddleOCR...")
-        self.ocr = PaddleOCR(use_angle_cls=True, lang='vi', show_log=False)
+        if PaddleOCR is not None:
+            try:
+                print("Đang khởi tạo PaddleOCR...")
+                self.ocr = PaddleOCR(use_angle_cls=True, lang='vi', show_log=False)
+            except Exception as e:
+                print(f"Cảnh báo: Không thể nạp PaddleOCR ({e})")
+                self.ocr = None
+        else:
+            self.ocr = None
 
     def clean_text(self, text: str) -> str:
         # 1. Nối lại các từ bị gãy ở cuối dòng do dấu gạch nối (Ví dụ: "trách nhi- \n ệm")
@@ -33,63 +53,138 @@ class DocumentProcessor:
         
         return text.strip()
 
+    @staticmethod
+    def is_toc_page(text: str) -> bool:
+        """Phát hiện xem trang có phải là trang Mục lục (Table of Contents) không"""
+        clean = text.strip()
+        if not clean:
+            return False
+        has_toc_header = bool(re.search(r'^\s*(?:Table\s+of\s+Contents|Contents|Mục\s+lục)\b', clean, re.IGNORECASE | re.MULTILINE))
+        dot_leaders = len(re.findall(r'(?:\.\s*){3,}', clean))
+        lines = [l.strip() for l in clean.split('\n') if l.strip()]
+        toc_lines = sum(1 for l in lines if re.search(r'[\.\-\s]{2,}\s*\d+$', l) or re.search(r'^(?:chapter|\d+\.|\bappendix\b).*\s+\d+$', l, re.IGNORECASE))
+        if has_toc_header and (dot_leaders >= 2 or toc_lines >= 3):
+            return True
+        if dot_leaders >= 4 or (len(lines) >= 5 and toc_lines / len(lines) >= 0.4):
+            return True
+        return False
+
+    HEADING_PATTERNS = [
+        r'^(?:chapter|chương|phần|mục)\s+[\dIVXLCDM]+[:\.\s\-]+.*$',
+        r'^\d+(?:\.\d+)*\s+[A-Z\u00C0-\u1EF9].*$',
+        r'^[A-Z\u00C0-\u1EF9\s\:\-]{4,60}$',
+        r'^appendix\s+[A-Z\d][:.\s\-]+.*$',
+        r'^Điều\s+\d+[\.:]?\s*.*$'
+    ]
+
+    @classmethod
+    def extract_heading(cls, line: str) -> str | None:
+        stripped = line.strip()
+        if not stripped or len(stripped) > 100 or len(stripped) < 3:
+            return None
+        if stripped.endswith((';', '...', ',')):
+            return None
+        for pattern in cls.HEADING_PATTERNS:
+            if re.match(pattern, stripped, re.IGNORECASE):
+                return stripped
+        return None
+
+    @staticmethod
+    def classify_chunk_type(heading: str, text: str) -> str:
+        h = (heading or "").lower()
+        t = text[:200].lower()
+        combined = f"{h} {t}"
+        
+        if any(k in combined for k in ["abstract", "tóm tắt"]):
+            return "abstract"
+        if any(k in combined for k in ["introduction", "motivation", "giới thiệu", "động lực", "bối cảnh", "problem statement", "objective"]):
+            return "introduction"
+        if any(k in combined for k in ["methodology", "architecture", "method", "phương pháp", "kiến trúc", "mô hình", "framework"]):
+            return "methodology"
+        if any(k in combined for k in ["experiment", "result", "thực nghiệm", "thử nghiệm", "kết quả", "evaluation", "benchmark", "auc"]):
+            return "experiment"
+        if any(k in combined for k in ["conclusion", "kết luận", "discussion", "thảo luận", "future work"]):
+            return "conclusion"
+        return "general"
+
+    @staticmethod
+    def is_junk_chunk(text: str) -> bool:
+        clean = text.strip()
+        if len(clean) < 35:
+            return True
+        letters = re.findall(r'[a-zA-Z0-9\u00C0-\u1EF9]', clean)
+        if not letters or len(letters) / len(clean) < 0.35:
+            return True
+        if re.search(r'(?:\.\s*){4,}', clean):
+            return True
+        if re.search(r'\bcontents\b', clean, re.IGNORECASE) and re.search(r'\babstract\b', clean, re.IGNORECASE) and re.search(r'\d+\s+\d+', clean):
+            return True
+        return False
+
     def process_pdf(self, file_path: str):
-        """Hàm phụ: Đọc file PDF (Hỗ trợ Text-PDF và Scan-PDF bằng OCR)"""
+        """Hàm phụ: Đọc file PDF (Hỗ trợ Text-PDF, Scan-PDF bằng OCR và Lọc bỏ Mục lục)"""
         doc = fitz.open(file_path)
         pages_text = []
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             text = page.get_text("text").strip()
+            if not text and self.ocr is not None:
+                try:
+                    pix = page.get_pixmap()
+                    img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
+                    if pix.n == 4:
+                        import cv2
+                        img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+                    elif pix.n == 1:
+                        import cv2
+                        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+                    
+                    result = self.ocr.ocr(img, cls=True)
+                    page_text = ""
+                    if result and result[0]:
+                        for line in result[0]:
+                            page_text += line[1][0] + "\n"
+                    text = page_text.strip()
+                except Exception as e:
+                    print(f"Lỗi khi OCR trang {page_num + 1}: {e}")
+                    
             if text:
+                if self.is_toc_page(text):
+                    print(f" [Cleaner] Bỏ qua trang Mục lục (TOC): Trang {page_num + 1}")
+                    continue
                 pages_text.append({"text": text, "page": page_num + 1})
-            else:
-                # Nếu trang PDF không có text điện tử -> Kích hoạt OCR
-                pix = page.get_pixmap()
-                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
-                if pix.n == 4:
-                    import cv2
-                    img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
-                elif pix.n == 1:
-                    import cv2
-                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
                 
-                result = self.ocr.ocr(img, cls=True)
-                page_text = ""
-                if result and result[0]:
-                    for line in result[0]:
-                        page_text += line[1][0] + "\n"
-                
-                if page_text.strip():
-                    pages_text.append({"text": page_text, "page": page_num + 1})
         doc.close()
         return pages_text
 
     def process_image(self, file_path: str):
         """Hàm phụ: Đọc trực tiếp file ảnh bằng PaddleOCR"""
-        result = self.ocr.ocr(file_path, cls=True)
-        page_text = ""
-        if result and result[0]:
-            for line in result[0]:
-                page_text += line[1][0] + "\n"
-        return [{"text": page_text, "page": 1}] if page_text.strip() else []
+        if self.ocr is None:
+            return []
+        try:
+            result = self.ocr.ocr(file_path, cls=True)
+            page_text = ""
+            if result and result[0]:
+                for line in result[0]:
+                    page_text += line[1][0] + "\n"
+            return [{"text": page_text, "page": 1}] if page_text.strip() else []
+        except Exception as e:
+            print(f"Lỗi khi OCR ảnh {file_path}: {e}")
+            return []
 
     def process_docx(self, file_path: str):
         """Hàm phụ: Đọc file Word (.docx)"""
         doc = docx.Document(file_path)
-        # Word không có khái niệm trang (Page) rõ ràng như PDF, nên gộp tất cả thành Trang 1
         full_text = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
         return [{"text": full_text, "page": 1}] if full_text else []
 
     def process_xlsx(self, file_path: str):
         """Hàm phụ: Đọc file Excel (.xlsx) và chuyển thành bảng Markdown"""
-        # Đọc tất cả các sheet trong file Excel
         excel_data = pd.read_excel(file_path, sheet_name=None)
         pages_text = []
         for sheet_name, df in excel_data.items():
-            # Xóa các dòng/cột rỗng hoàn toàn để dữ liệu sạch hơn
             df = df.dropna(how='all').dropna(axis=1, how='all')
             if not df.empty:
-                # Chuyển DataFrame thành định dạng Markdown (Rất tốt cho AI đọc)
                 markdown_table = df.to_markdown(index=False)
                 text = f"--- Dữ liệu từ Sheet: {sheet_name} ---\n{markdown_table}"
                 pages_text.append({"text": text, "page": f"Sheet {sheet_name}"})
@@ -110,12 +205,13 @@ class DocumentProcessor:
                 pages_text.append({"text": full_text, "page": i + 1})
         return pages_text
 
-    def process_file(self, file_path: str):
-        """Đọc PDF/Docx/Xlsx/Pptx, dọn dẹp Text, cắt Semantic Chunk và gắn Metadata"""
+    def process_file(self, file_path: str, original_filename: str = None):
+        """Đọc PDF/Docx/Xlsx/Pptx, dọn dẹp Text, bóc tách theo Cấu trúc (Heading) và gán Siêu dữ liệu phân cấp"""
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Không tìm thấy file: {file_path}")
 
-        print(f"Đang đọc file: {file_path}")
+        print(f"Đang đọc và bóc tách cấu trúc file: {file_path}")
+        doc_display_name = original_filename or os.path.basename(file_path)
         
         file_ext = file_path.lower()
         if file_ext.endswith(".pdf"):
@@ -133,40 +229,94 @@ class DocumentProcessor:
 
         chunks_with_metadata = []
 
-        # Kiểm tra nhanh xem đây có phải là văn bản pháp luật không (Chứa "Điều 1.", "Điều 2.")
+        # Kiểm tra văn bản pháp luật (Chứa "Điều 1.", "Điều 2.")
         full_document_text = "\n".join([self.clean_text(d["text"]) for d in pages_data])
         is_legal_doc = bool(re.search(r'^Điều\s+\d+[\.:]?', full_document_text, re.MULTILINE | re.IGNORECASE))
         
         if is_legal_doc and file_ext in [".pdf", ".docx"]:
             print("Phát hiện văn bản Pháp luật -> Kích hoạt LegalDocumentParser")
-            parser = LegalDocumentParser({"title": os.path.basename(file_path), "source": os.path.basename(file_path)})
+            parser = LegalDocumentParser({"title": doc_display_name, "source": doc_display_name})
             legal_docs = parser.parse(full_document_text)
             
-            for doc in legal_docs:
-                if len(doc.page_content.strip()) > 10:
-                    chunks_with_metadata.append({
-                        "content": doc.page_content,
-                        "metadata": doc.metadata
+            for idx, doc in enumerate(legal_docs):
+                if len(doc.page_content.strip()) > 10 and not self.is_junk_chunk(doc.page_content):
+                    meta = doc.metadata.copy()
+                    meta.update({
+                        "source": doc_display_name,
+                        "filename": doc_display_name,
+                        "section_title": meta.get("article_title") or "Điều khoản",
+                        "chunk_type": "legal",
+                        "char_count": len(doc.page_content.strip())
                     })
-            print(f" Legal Chunking hoàn tất: Tạo ra {len(chunks_with_metadata)} khối theo cấu trúc Điều/Khoản.")
-        else:
-            print("Văn bản thông thường -> Sử dụng SemanticChunker")
-            for data in pages_data:
-                cleaned_text = self.clean_text(data["text"])
-                
-                # SemanticChunker cắt dựa trên câu và gom nhóm ý nghĩa
-                page_chunks = self.text_splitter.split_text(cleaned_text)
-                
-                for chunk in page_chunks:
-                    if len(chunk.strip()) > 10: # Chỉ lấy các đoạn có nội dung thực tế
-                        chunks_with_metadata.append({
-                            "content": chunk,
-                            "metadata": {
-                                "source": os.path.basename(file_path),
-                                "page": data["page"]
-                            }
-                        })
-                    
-            print(f" Semantic Chunking hoàn tất: Tạo ra {len(chunks_with_metadata)} khối ý nghĩa từ tài liệu.")
+                    chunks_with_metadata.append({
+                        "content": doc.page_content.strip(),
+                        "metadata": meta
+                    })
+            total = len(chunks_with_metadata)
+            for idx, item in enumerate(chunks_with_metadata):
+                item["metadata"]["chunk_index"] = idx
+                item["metadata"]["total_chunks"] = total
+            print(f" Legal Chunking hoàn tất: Tạo ra {total} khối theo cấu trúc Điều/Khoản.")
+            return chunks_with_metadata
+
+        # Văn bản thông thường (Báo cáo, Luận văn, Tài liệu kỹ thuật, Word, Excel...)
+        # Phân tích cấu trúc theo Heading/Chương mục
+        print("Kích hoạt Structure-Aware Chunking (Phân tích cấu trúc theo Chương mục & Tiêu đề)...")
+        current_heading = "Tổng quan"
+        raw_sections = []
+        
+        for data in pages_data:
+            page_num = data["page"]
+            text = data["text"]
+            lines = text.split("\n")
+            page_content_lines = []
             
+            for line in lines:
+                line_str = line.strip()
+                if not line_str:
+                    continue
+                # Bỏ qua dòng rác số trang đơn độc ở chân/đầu trang (Page numbering)
+                if re.match(r'^\d+$', line_str) or re.match(r'^page\s+\d+(\s+of\s+\d+)?$', line_str, re.IGNORECASE):
+                    continue
+                    
+                heading_cand = self.extract_heading(line_str)
+                if heading_cand:
+                    if page_content_lines:
+                        raw_sections.append((page_num, current_heading, "\n".join(page_content_lines)))
+                        page_content_lines = []
+                    current_heading = heading_cand
+                else:
+                    page_content_lines.append(line_str)
+                    
+            if page_content_lines:
+                raw_sections.append((page_num, current_heading, "\n".join(page_content_lines)))
+
+        for page_num, heading, text in raw_sections:
+            clean_text = self.clean_text(text)
+            if len(clean_text) < 40:
+                continue
+            sub_chunks = self.recursive_splitter.split_text(clean_text)
+            chunk_type = self.classify_chunk_type(heading, clean_text)
+            for sc in sub_chunks:
+                sc_clean = sc.strip()
+                if len(sc_clean) > 60 and not self.is_junk_chunk(sc_clean):
+                    chunks_with_metadata.append({
+                        "content": sc_clean,
+                        "metadata": {
+                            "source": doc_display_name,
+                            "filename": doc_display_name,
+                            "page": page_num,
+                            "page_end": page_num,
+                            "section_title": heading,
+                            "chunk_type": chunk_type,
+                            "char_count": len(sc_clean)
+                        }
+                    })
+
+        total = len(chunks_with_metadata)
+        for idx, item in enumerate(chunks_with_metadata):
+            item["metadata"]["chunk_index"] = idx
+            item["metadata"]["total_chunks"] = total
+            
+        print(f" Structure-Aware Chunking hoàn tất: Tạo ra {total} khối tri thức có cấu trúc hoàn chỉnh.")
         return chunks_with_metadata

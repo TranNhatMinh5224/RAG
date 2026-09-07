@@ -29,7 +29,7 @@ paddleocr
 opencv-python-headless
 fastembed>=0.2.6
 celery
-pika
+redis>=5.0.0
 langfuse
 langchain-langfuse
 pydantic-settings

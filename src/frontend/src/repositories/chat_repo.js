@@ -2,8 +2,11 @@ import axiosClient from '../api/axios_client';
 
 class ChatRepository {
     // ---- PHẦN CONVERSATION ----
-    static async createConversation(title) {
-        const response = await axiosClient.post('/conversation/', { title });
+    static async createConversation(title, documentIds = []) {
+        const response = await axiosClient.post('/conversation/', { 
+            title, 
+            document_ids: documentIds 
+        });
         return response.data;
     }
 
@@ -36,7 +39,7 @@ class ChatRepository {
         return response.data;
     }
 
-    static async sendMessageStream(conversationId, query, onChunk, onError, onComplete) {
+    static async sendMessageStream(conversationId, query, onChunk, onError, onComplete, signal = null) {
         const baseURL = axiosClient.defaults.baseURL || 'http://localhost:8000';
         const token = localStorage.getItem('access_token');
 
@@ -50,7 +53,8 @@ class ChatRepository {
                 body: JSON.stringify({
                     conversation_id: conversationId,
                     question: query
-                })
+                }),
+                signal: signal
             });
 
             if (!response.ok) {
@@ -70,8 +74,12 @@ class ChatRepository {
                 }
             }
 
-            if (onComplete) onComplete();
+            if (onComplete) onComplete(false);
         } catch (err) {
+            if (err.name === 'AbortError') {
+                if (onComplete) onComplete(true);
+                return;
+            }
             if (onError) onError(err);
             else throw err;
         }

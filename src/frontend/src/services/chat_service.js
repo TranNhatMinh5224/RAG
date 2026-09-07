@@ -1,11 +1,11 @@
 import ChatRepository from '../repositories/chat_repo';
 
 class ChatService {
-    static async createNewChat(title = "Đoạn chat mới") {
+    static async createNewChat(title = "Dự án mới", documentIds = []) {
         try {
-            return await ChatRepository.createConversation(title);
+            return await ChatRepository.createConversation(title, documentIds);
         } catch (error) {
-            throw new Error("Lỗi khi tạo cuộc trò chuyện mới.");
+            throw new Error("Lỗi khi tạo dự án mới.");
         }
     }
 
@@ -55,11 +55,11 @@ class ChatService {
         }
     }
 
-    static async askAIStream(conversationId, question, onChunk, onError, onComplete) {
+    static async askAIStream(conversationId, question, onChunk, onError, onComplete, signal = null) {
         if (!question.trim()) {
             throw new Error("Vui lòng nhập câu hỏi.");
         }
-        return await ChatRepository.sendMessageStream(conversationId, question, onChunk, onError, onComplete);
+        return await ChatRepository.sendMessageStream(conversationId, question, onChunk, onError, onComplete, signal);
     }
 }
 

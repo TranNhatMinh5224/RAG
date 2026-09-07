@@ -26,10 +26,12 @@ from core.security import SECRET_KEY, ALGORITHM
 from repositories.user_repository import UserRepository
 from repositories.document_repository import DocumentRepository
 from repositories.chat_repository import ChatRepository
+from repositories.activity_repository import ActivityRepository
 
 from services.auth_service import AuthService
 from services.document_service import DocumentService
 from services.chat_service import ChatService
+from services.activity_service import ActivityService
 
 security = HTTPBearer()
 
@@ -50,19 +52,38 @@ async def get_document_repo(db=Depends(get_db)) -> DocumentRepository:
 async def get_chat_repo(db=Depends(get_db)) -> ChatRepository:
     return ChatRepository(db)
 
-# -- Services --
-async def get_auth_service(user_repo=Depends(get_user_repo)) -> AuthService:
-    return AuthService(user_repo)
+async def get_activity_repo(db=Depends(get_db)) -> ActivityRepository:
+    return ActivityRepository(db)
 
-async def get_document_service(doc_repo=Depends(get_document_repo), vsm=Depends(get_vector_store)) -> DocumentService:
-    return DocumentService(doc_repo, vsm)
+# -- Services --
+async def get_activity_service(activity_repo=Depends(get_activity_repo)) -> ActivityService:
+    return ActivityService(activity_repo)
+
+async def get_auth_service(
+    user_repo=Depends(get_user_repo),
+    activity_service=Depends(get_activity_service),
+) -> AuthService:
+    return AuthService(user_repo, activity_service)
+
+async def get_document_service(
+    doc_repo=Depends(get_document_repo),
+    vsm=Depends(get_vector_store),
+    activity_service=Depends(get_activity_service),
+) -> DocumentService:
+    return DocumentService(doc_repo, vsm, activity_service)
 
 async def get_chat_service(
     chat_repo=Depends(get_chat_repo),
     doc_repo=Depends(get_document_repo),
-    rag_chain=Depends(get_rag_chain),
+    activity_service=Depends(get_activity_service),
 ) -> ChatService:
-    return ChatService(chat_repo, doc_repo, rag_chain)
+    return ChatService(
+        chat_repo,
+        doc_repo,
+        rag_chain_getter=get_rag_chain,
+        activity_service=activity_service,
+    )
+
 
 # -- Current User --
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), auth_service: AuthService = Depends(get_auth_service)):

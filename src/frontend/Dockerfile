@@ -1,16 +1,16 @@
 # =========================================
-# STAGE 1: Development (Vite Dev Server)
+# STAGE 1: Development (Next.js Dev Server)
 # =========================================
 FROM node:20-alpine AS development
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host"]
+EXPOSE 3000
+CMD ["npm", "run", "dev"]
 
 # =========================================
-# STAGE 2: Build (Biên dịch React + Vite thành file tĩnh)
+# STAGE 2: Builder
 # =========================================
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -20,10 +20,15 @@ COPY . .
 RUN npm run build
 
 # =========================================
-# STAGE 3: Production (Nginx Web Server - Bỏ hoàn toàn Node.js/Vite ở runtime)
+# STAGE 3: Production (Next.js Standalone/Runner)
 # =========================================
-FROM nginx:alpine AS production
-# Copy file tĩnh vừa được biên dịch vào thư mục chứa web của Nginx
-COPY --from=builder /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+FROM node:20-alpine AS production
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm install --only=production
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
+EXPOSE 3000
+CMD ["npm", "run", "start"]

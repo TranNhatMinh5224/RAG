@@ -82,3 +82,66 @@ class ChatRepository:
         await self.db.commit()
         await self.db.refresh(message)
         return message
+
+    async def count_messages_for_user(self, conversation_id: int, user_id: int) -> int:
+        from sqlalchemy import func
+        result = await self.db.execute(
+            select(func.count(Message.id))
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .filter(
+                Message.conversation_id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+        )
+        return result.scalar_one() or 0
+
+    async def get_messages_before_recent_for_user(
+        self,
+        conversation_id: int,
+        user_id: int,
+        exclude_recent_count: int = 4,
+    ) -> list[Message]:
+        total = await self.count_messages_for_user(conversation_id, user_id)
+        if total <= exclude_recent_count:
+            return []
+        limit_count = total - exclude_recent_count
+        result = await self.db.execute(
+            select(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .filter(
+                Message.conversation_id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+            .order_by(Message.created_at.asc())
+            .limit(limit_count)
+        )
+        return list(result.scalars().all())
+
+    async def update_conversation_summary(
+        self,
+        conversation_id: int,
+        user_id: int,
+        summary: str,
+    ) -> Conversation | None:
+        conv = await self.get_conversation_with_documents(conversation_id, user_id)
+        if conv:
+            conv.summary = summary
+            await self.db.commit()
+            await self.db.refresh(conv)
+        return conv
+
+    async def update_gemini_cache(
+        self,
+        conversation_id: int,
+        user_id: int,
+        cache_name: str,
+        expires_at,
+    ) -> Conversation | None:
+        conv = await self.get_conversation_with_documents(conversation_id, user_id)
+        if conv:
+            conv.gemini_cache_name = cache_name
+            conv.gemini_cache_expires_at = expires_at
+            await self.db.commit()
+            await self.db.refresh(conv)
+        return conv
+

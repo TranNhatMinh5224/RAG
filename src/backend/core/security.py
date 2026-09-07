@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import jwt
-from passlib.context import CryptContext
+import bcrypt
 from core.config import settings
 
 SECRET_KEY = settings.SECRET_KEY
@@ -8,16 +8,18 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
-# Cấu hình Bcrypt để băm mật khẩu
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        password_bytes = plain_password.encode('utf-8')[:72]
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception:
+        return False
 
-def verify_password(plain_password, hashed_password):
-    truncated = plain_password.encode('utf-8')[:64].decode('utf-8', 'ignore')
-    return pwd_context.verify(truncated, hashed_password)
-
-def get_password_hash(password):
-    truncated = password.encode('utf-8')[:64].decode('utf-8', 'ignore')
-    return pwd_context.hash(truncated)
+def get_password_hash(password: str) -> str:
+    password_bytes = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()

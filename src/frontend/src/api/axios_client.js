@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Khởi tạo instance của Axios với URL gốc của Backend
 const axiosClient = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -11,9 +11,11 @@ const axiosClient = axios.create({
 // Interceptor: Tự động đính kèm Token vào mọi Request gửi đi
 axiosClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+            }
         }
         return config;
     },
@@ -30,9 +32,10 @@ axiosClient.interceptors.response.use(
     (error) => {
         if (error.response && error.response.status === 401) {
             // Hết hạn token hoặc không hợp lệ -> Xóa token và bắt đăng nhập lại
-            localStorage.removeItem('access_token');
-            // Dùng events hoặc window.location để redirect về trang login
-            window.location.href = '/login';
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }

@@ -1,28 +1,39 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button, ListGroup, Badge, Spinner, Nav } from 'react-bootstrap';
-import { Upload, FileText, Trash2, CheckSquare, Square, RefreshCw, AlertCircle, Image as ImageIcon, Table, FileSpreadsheet } from 'lucide-react';
+import { Modal, Spinner } from 'react-bootstrap';
+import { 
+  UploadCloud, FileText, Trash2, CheckCircle2, Circle, RefreshCw, 
+  AlertCircle, Image as ImageIcon, FileSpreadsheet, FileCode, Check, X
+} from 'lucide-react';
 import DocumentService from '../services/document_service';
 import ChatService from '../services/chat_service';
 import { toast } from 'react-toastify';
-import GlassBadge from '../components/GlassBadge';
 
-const DocumentManagerModal = ({ show, onHide, conversationId }) => {
+const cleanDocName = (name) => {
+  if (!name) return 'Tài liệu không tên';
+  let cleaned = name.replace(/^\d+_[a-f0-9]{16,}\.?/i, '');
+  if (cleaned.startsWith('.')) cleaned = 'Tài_liệu' + cleaned;
+  cleaned = cleaned.replace(/^\d+_/, '').replace(/_/g, ' ');
+  return cleaned || name;
+};
+
+const DocumentManagerModal = ({ show, onHide, conversationId, onDocumentsUpdated }) => {
   const [documents, setDocuments] = useState([]);
   const [attachedDocIds, setAttachedDocIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [dragOver, setDragOver] = useState(false);
   const pollingRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const loadData = async (silent = false) => {
     if (!show) return;
     try {
       if (!silent) setLoading(true);
-      // Load all documents belonging to user
       const myDocs = await DocumentService.fetchMyDocuments();
       setDocuments(myDocs);
 
-      // Load documents attached to current conversation
       if (conversationId) {
         const chatDetails = await ChatService.loadMessages(conversationId);
         const attachedIds = (chatDetails.documents || []).map(d => d.id);
@@ -45,6 +56,7 @@ const DocumentManagerModal = ({ show, onHide, conversationId }) => {
     if (show && hasProcessing) {
       pollingRef.current = setInterval(() => {
         loadData(true);
+        onDocumentsUpdated?.();
       }, 3000);
     } else {
       if (pollingRef.current) clearInterval(pollingRef.current);
@@ -55,171 +67,320 @@ const DocumentManagerModal = ({ show, onHide, conversationId }) => {
     };
   }, [show, documents]);
 
-  const handleUpload = async (e) => {
-    const file = e.target.files[0];
+  const processFile = async (file) => {
     if (!file) return;
 
     try {
       setUploading(true);
       const uploadedDoc = await DocumentService.uploadFile(file);
-      toast.success("Đã tải file lên! Celery Worker đang xử lý OCR & Nhúng Vector ngầm.");
+      toast.success(`Đã tải lên "${file.name}". Đang bóc tách & lưu trữ Vector...`);
 
-      // Auto attach uploaded doc to conversation if active
       if (conversationId && uploadedDoc && uploadedDoc.id) {
         const newAttachedIds = [...attachedDocIds, uploadedDoc.id];
         await ChatService.setContextDocuments(conversationId, newAttachedIds);
         setAttachedDocIds(newAttachedIds);
+        onDocumentsUpdated?.();
       }
 
       await loadData();
+      onDocumentsUpdated?.();
     } catch (error) {
       toast.error(error.message);
     } finally {
       setUploading(false);
-      e.target.value = null;
     }
   };
 
-  const handleDelete = async (docId) => {
-    if (!window.confirm("Thao tác này sẽ xóa vĩnh viễn file khỏi hệ thống và Qdrant Vector Store. Bạn chắc chứ?")) return;
-    try {
-      await DocumentService.removeDocument(docId);
-      toast.success("Đã xóa tài liệu sạch sẽ.");
-      await loadData();
-    } catch (error) {
-      toast.error(error.message);
-    }
+  const handleFileInput = (e) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    e.target.value = '';
   };
 
-  const toggleAttach = async (docId) => {
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const toggleAttachDoc = async (docId) => {
     if (!conversationId) {
-      toast.info("Vui lòng chọn một cuộc trò chuyện trước khi đính kèm.");
+      toast.warn("Vui lòng mở một cuộc trò chuyện để gắn tài liệu.");
       return;
     }
-    let newAttachedIds = [...attachedDocIds];
-    if (newAttachedIds.includes(docId)) {
-      newAttachedIds = newAttachedIds.filter(id => id !== docId);
-    } else {
-      newAttachedIds.push(docId);
-    }
+
+    const isAttached = attachedDocIds.includes(docId);
+    const updatedIds = isAttached
+      ? attachedDocIds.filter(id => id !== docId)
+      : [...attachedDocIds, docId];
 
     try {
-      await ChatService.setContextDocuments(conversationId, newAttachedIds);
-      setAttachedDocIds(newAttachedIds);
-      toast.success("Đã cập nhật danh sách tài liệu tham chiếu.");
+      await ChatService.setContextDocuments(conversationId, updatedIds);
+      setAttachedDocIds(updatedIds);
+      onDocumentsUpdated?.();
+      toast.info(isAttached ? "Đã gỡ tài liệu khỏi hội thoại" : "Đã gắn tài liệu vào hội thoại");
+    } catch (error) {
+      toast.error("Không thể cập nhật tài liệu cho phiên chat.");
+    }
+  };
+
+  const handleDelete = async (e, docId, filename) => {
+    e.stopPropagation();
+    if (!window.confirm(`Bạn có chắc muốn xóa vĩnh viễn tài liệu "${filename}"?`)) return;
+
+    try {
+      await DocumentService.deleteDocument(docId);
+      toast.success("Đã xóa tài liệu khỏi kho tri thức.");
+      onDocumentsUpdated?.();
+      loadData();
     } catch (error) {
       toast.error(error.message);
     }
   };
 
-  // Filtered documents by tab
-  const filteredDocs = documents.filter(doc => {
-    if (activeTab === 'all') return true;
-    const cat = DocumentService.getFileTypeCategory(doc.filename);
-    if (activeTab === 'docs' && cat === 'docs') return true;
-    if (activeTab === 'sheets' && cat === 'sheets') return true;
-    if (activeTab === 'images' && cat === 'images') return true;
-    if (activeTab === 'slides' && cat === 'slides') return true;
-    return false;
-  });
+  const getFileIcon = (filename) => {
+    const ext = filename?.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return <FileText size={20} color="var(--accent-rose)" />;
+    if (['xlsx', 'xls', 'csv'].includes(ext)) return <FileSpreadsheet size={20} color="var(--accent-emerald)" />;
+    if (['docx', 'doc'].includes(ext)) return <FileText size={20} color="var(--accent-cyan)" />;
+    if (['png', 'jpg', 'jpeg'].includes(ext)) return <ImageIcon size={20} color="var(--accent-indigo)" />;
+    return <FileCode size={20} color="var(--text-secondary)" />;
+  };
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered contentClassName="glass-panel text-light" style={{ backdropFilter: 'blur(20px)' }}>
-      <Modal.Header closeButton closeVariant="white" className="border-bottom border-secondary">
-        <Modal.Title className="text-light d-flex align-items-center gap-2">
-          <FileText className="text-cyan-400" />
-          <span>Kho Tài Liệu & Tri Thức RAG</span>
+    <Modal 
+      show={show} 
+      onHide={onHide} 
+      size="lg" 
+      centered
+    >
+      <Modal.Header closeButton closeVariant="white">
+        <Modal.Title className="d-flex align-items-center gap-2" style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+          <UploadCloud size={22} color="var(--accent-cyan)" />
+          <span>Kho Lưu Trữ Tri Thức & Tài Liệu Nguồn</span>
         </Modal.Title>
       </Modal.Header>
 
-      <Modal.Body className="text-light">
-        {/* Top Control Bar */}
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <p className="mb-0 text-secondary" style={{ fontSize: '0.9rem' }}>
-            Tích chọn các file muốn đưa vào bộ nhớ truy vấn cho cuộc trò chuyện hiện tại.
-          </p>
-          <div>
-            <input type="file" id="modalFileUpload" className="d-none" onChange={handleUpload} accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg" />
-            <Button
-              className="btn-brand"
-              onClick={() => document.getElementById('modalFileUpload').click()}
-              disabled={uploading}
-            >
-              {uploading ? <Spinner size="sm" /> : <Upload size={16} />}
-              Tải file mới lên
-            </Button>
-          </div>
+      <Modal.Body style={{ padding: '24px' }}>
+        {/* Drag & Drop Upload Zone */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            border: `2px dashed ${dragOver ? 'var(--accent-cyan)' : 'var(--border-glass-bright)'}`,
+            borderRadius: '16px',
+            padding: '32px 20px',
+            textAlign: 'center',
+            background: dragOver ? 'rgba(6, 182, 212, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+            cursor: 'pointer',
+            transition: 'all 0.25s ease',
+            marginBottom: '24px',
+            position: 'relative',
+          }}
+        >
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileInput} 
+            style={{ display: 'none' }}
+            accept=".pdf,.docx,.xlsx,.pptx,.png,.jpg,.jpeg" 
+          />
+
+          {uploading ? (
+            <div className="py-2">
+              <Spinner animation="border" variant="info" className="mb-2" />
+              <div style={{ color: 'var(--text-primary)', fontWeight: 500, fontSize: '0.9rem' }}>
+                Đang tải tệp lên và vector hóa...
+              </div>
+            </div>
+          ) : (
+            <>
+              <div 
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '14px',
+                  background: 'rgba(6, 182, 212, 0.12)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '12px',
+                }}
+              >
+                <UploadCloud size={24} color="var(--accent-cyan)" />
+              </div>
+              <div style={{ fontWeight: 600, fontSize: '0.94rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                Kéo & thả tệp vào đây, hoặc click để chọn từ máy tính
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Hỗ trợ: PDF (báo cáo, hợp đồng), Word (.docx), Excel (.xlsx), Ảnh hóa đơn (Tối đa 25MB)
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Category Tabs */}
-        <Nav variant="pills" activeKey={activeTab} onSelect={(selectedKey) => setActiveTab(selectedKey)} className="mb-3 border-bottom border-secondary pb-2">
-          <Nav.Item>
-            <Nav.Link eventKey="all" className={`text-light ${activeTab === 'all' ? 'bg-cyan-500 text-white fw-bold' : ''}`}>Tất cả ({documents.length})</Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link eventKey="docs" className={`text-light ${activeTab === 'docs' ? 'bg-cyan-500 text-white fw-bold' : ''}`}>PDF & Word</Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link eventKey="sheets" className={`text-light ${activeTab === 'sheets' ? 'bg-cyan-500 text-white fw-bold' : ''}`}>Excel Bảng</Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link eventKey="images" className={`text-light ${activeTab === 'images' ? 'bg-cyan-500 text-white fw-bold' : ''}`}>Ảnh OCR</Nav.Link>
-          </Nav.Item>
-        </Nav>
-
-        {loading ? (
-          <div className="text-center py-5">
-            <Spinner animation="border" variant="info" />
-            <div className="text-secondary mt-2">Đang nạp danh sách kho tài liệu...</div>
+        {/* Documents Table / List */}
+        <div>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              Tri thức & Tài liệu đã nạp ({documents.length})
+            </span>
+            {conversationId && (
+              <span style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)' }}>
+                Đang liên kết vào không gian này: {attachedDocIds.length} tài liệu
+              </span>
+            )}
           </div>
-        ) : filteredDocs.length === 0 ? (
-          <div className="text-center text-secondary py-5">
-            Không tìm thấy tài liệu phù hợp trong mục này. Hãy tải lên file PDF, Word, Excel, PPTX hoặc Ảnh.
-          </div>
-        ) : (
-          <ListGroup variant="flush" className="bg-transparent">
-            {filteredDocs.map(doc => {
-              const isAttached = attachedDocIds.includes(doc.id);
-              const status = doc.status || 'READY';
 
-              return (
-                <ListGroup.Item
-                  key={doc.id}
-                  className="bg-transparent border-secondary text-light d-flex justify-content-between align-items-center p-3 rounded-3 mb-2 glass-panel-hover"
-                  style={{ background: 'rgba(15, 23, 42, 0.4)', border: '1px solid var(--border-glass)' }}
-                >
+          {loading && documents.length === 0 ? (
+            <div className="text-center py-5" style={{ color: 'var(--text-muted)' }}>
+              <Spinner animation="border" size="sm" variant="info" className="me-2" />
+              Đang tải danh sách tài liệu...
+            </div>
+          ) : documents.length === 0 ? (
+            <div className="text-center py-5" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+              Kho tài liệu chưa có tệp nào. Hãy tải lên tài liệu đầu tiên ở trên!
+            </div>
+          ) : (
+            <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              {documents.map((doc) => {
+                const isAttached = attachedDocIds.includes(doc.id);
+                const isReady = doc.status === 'READY';
+                const isProcessing = doc.status === 'PROCESSING';
+
+                return (
                   <div
-                    className="d-flex align-items-center gap-3"
-                    style={{ cursor: 'pointer', flexGrow: 1 }}
-                    onClick={() => toggleAttach(doc.id)}
+                    key={doc.id}
+                    onClick={() => toggleAttachDoc(doc.id)}
+                    className="glass-card mb-2"
+                    style={{
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: isAttached ? 'rgba(6, 182, 212, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                      borderColor: isAttached ? 'rgba(6, 182, 212, 0.35)' : 'var(--border-glass)',
+                      cursor: 'pointer',
+                    }}
                   >
-                    {isAttached ? (
-                      <CheckSquare className="text-cyan-400 flex-shrink-0" size={20} />
-                    ) : (
-                      <Square className="text-secondary flex-shrink-0" size={20} />
-                    )}
+                    <div className="d-flex align-items-center gap-3 text-truncate" style={{ maxWidth: '75%' }}>
+                      {/* Checkbox Icon */}
+                      {isAttached ? (
+                        <CheckCircle2 size={18} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
+                      ) : (
+                        <Circle size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                      )}
 
-                    <div>
-                      <div className="fw-bold text-light" style={{ fontSize: '0.95rem' }}>{doc.filename}</div>
-                      <div className="text-muted d-flex align-items-center gap-3 mt-1" style={{ fontSize: '0.8rem' }}>
-                        <span>Thêm lúc: {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString('vi-VN') : 'Mới tạo'}</span>
+                      {/* File Icon */}
+                      <div style={{ flexShrink: 0 }}>
+                        {getFileIcon(doc.filename)}
+                      </div>
+
+                      {/* Name & Date */}
+                      <div className="text-truncate">
+                        <div className="text-truncate" style={{ fontWeight: 500, fontSize: '0.88rem', color: 'var(--text-primary)' }} title={doc.filename}>
+                          {cleanDocName(doc.filename)}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('vi-VN') : 'Mới cập nhật'}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="d-flex align-items-center gap-3">
-                    <GlassBadge filename={doc.filename} status={status} active={isAttached} />
+                    {/* Status & Actions */}
+                    <div className="d-flex align-items-center gap-3">
+                      {isProcessing ? (
+                        <span 
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(245, 158, 11, 0.12)',
+                            color: 'var(--accent-amber)',
+                            fontSize: '0.75rem',
+                            padding: '3px 9px',
+                            borderRadius: '12px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          <span className="pulsing-dot processing" />
+                          <span>Đang bóc tách</span>
+                        </span>
+                      ) : isReady ? (
+                        <span 
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            color: 'var(--accent-emerald)',
+                            fontSize: '0.75rem',
+                            padding: '3px 9px',
+                            borderRadius: '12px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          <span className="pulsing-dot ready" />
+                          <span>Sẵn sàng</span>
+                        </span>
+                      ) : (
+                        <span 
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: 'rgba(244, 63, 94, 0.12)',
+                            color: 'var(--accent-rose)',
+                            fontSize: '0.75rem',
+                            padding: '3px 9px',
+                            borderRadius: '12px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          <span className="pulsing-dot failed" />
+                          <span>Lỗi vector</span>
+                        </span>
+                      )}
 
-                    <Button variant="outline-danger" size="sm" onClick={() => handleDelete(doc.id)} title="Xóa file">
-                      <Trash2 size={15} />
-                    </Button>
+                      <button
+                        onClick={(e) => handleDelete(e, doc.id, doc.filename)}
+                        title="Xóa tài liệu"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          transition: 'color 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-rose)'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
-                </ListGroup.Item>
-              );
-            })}
-          </ListGroup>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </Modal.Body>
+
+      <Modal.Footer>
+        <button 
+          className="btn-brand" 
+          onClick={onHide}
+          style={{ borderRadius: '10px', padding: '8px 22px' }}
+        >
+          Xong
+        </button>
+      </Modal.Footer>
     </Modal>
   );
 };

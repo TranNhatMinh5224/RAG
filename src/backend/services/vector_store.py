@@ -5,7 +5,6 @@ from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, SparseVectorParams
 from qdrant_client.http import models
-from services.document_processor import DocumentProcessor
 from core.config import settings
 
 class VectorStoreManager:
@@ -51,13 +50,14 @@ class VectorStoreManager:
             retrieval_mode=RetrievalMode.HYBRID
         )
 
-    async def ingest_document_async(self, file_path: str, user_id: int, document_id: int):
+    async def ingest_document_async(self, file_path: str, user_id: int, document_id: int, original_filename: str = None):
         print(f"\n--- BẮT ĐẦU QUÁ TRÌNH INGESTION (BẤT ĐỒNG BỘ) ---")
         
         # Tiêm Embeddings vào DocumentProcessor để chạy Semantic Chunking
+        from services.document_processor import DocumentProcessor
         processor = DocumentProcessor(self.embeddings)
         # Bọc vào to_thread để tránh OCR làm treo server
-        chunks = await asyncio.to_thread(processor.process_file, file_path)
+        chunks = await asyncio.to_thread(processor.process_file, file_path, original_filename)
         
         texts = []
         metadatas = []

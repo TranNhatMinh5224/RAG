@@ -9,6 +9,7 @@ from core.security import (
     verify_password,
 )
 from repositories.user_repository import UserRepository
+from services.activity_service import ActivityService
 from services.exceptions import (
     AuthenticationError,
     DuplicateEmailError,
@@ -18,8 +19,9 @@ from services.exceptions import (
 import jwt
 
 class AuthService:
-    def __init__(self, user_repo: UserRepository):
+    def __init__(self, user_repo: UserRepository, activity_service: ActivityService | None = None):
         self.user_repo = user_repo
+        self.activity_service = activity_service
 
     async def get_user_by_email(self, email: str) -> User | None:
         return await self.user_repo.get_by_email(email)
@@ -36,7 +38,16 @@ class AuthService:
         existing_user = await self.user_repo.get_by_email(user_data.email)
         if existing_user:
             raise DuplicateEmailError
-        return await self.create_user(user_data)
+        new_user = await self.create_user(user_data)
+        if self.activity_service:
+            await self.activity_service.record_activity(
+                action="USER_REGISTER",
+                user_id=new_user.id,
+                resource_type="user",
+                resource_id=str(new_user.id),
+                details=f"Đăng ký tài khoản: {new_user.email}",
+            )
+        return new_user
 
     async def authenticate_user(self, email: str, password: str) -> User | bool:
         user = await self.user_repo.get_by_email(email)
@@ -50,6 +61,15 @@ class AuthService:
         auth_user = await self.authenticate_user(email, password)
         if not auth_user:
             raise AuthenticationError
+
+        if self.activity_service:
+            await self.activity_service.record_activity(
+                action="USER_LOGIN",
+                user_id=auth_user.id,
+                resource_type="user",
+                resource_id=str(auth_user.id),
+                details=f"Đăng nhập thành công: {auth_user.email}",
+            )
 
         return Token(
             access_token=create_access_token(data={"sub": auth_user.email}),

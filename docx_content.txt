@@ -1,0 +1,62 @@
+BÁO CÁO KHẢO SÁT BỐI CẢNH
+VÀ BÀI TOÁN NGHIÊN CỨU
+ỨNG DỤNG DEEP LEARNING TRONG HỌC BIỂU DIỄN
+CHO DỮ LIỆU Y TẾ PHÂN MẢNH
+CHƯƠNG 1. BỐI CẢNH VÀ BÀI TOÁN NGHIÊN CỨU
+Hiện nay, dữ liệu y tế ngày càng lớn và đa dạng nhưng thường nằm rải rác ở nhiều nguồn, có cấu trúc khác nhau và không phải lúc nào cũng đầy đủ. Điều này gây khó khăn cho việc khai thác dữ liệu bằng các mô hình AI. Từ thực tế đó, nghiên cứu tập trung vào bài toán học biểu diễn từ dữ liệu y tế phân mảnh bằng Deep Learning.
+Hình 1.1. Chuỗi logic hình thành bài toán nghiên cứu
+1.1. Bối cảnh y tế số hiện nay
+Trước đây, phần lớn thông tin khám chữa bệnh được ghi trên giấy, sổ khám bệnh, phiếu xét nghiệm và phim chụp. Ngày nay, cùng với quá trình số hóa, những thông tin này dần được lưu trữ và quản lý bằng nhiều hệ thống phần mềm khác nhau trong bệnh viện.
+Một số hệ thống phổ biến gồm:
+HIS (Hospital Information System): hệ thống quản lý hoạt động khám chữa bệnh của bệnh viện. Dữ liệu thường gồm thông tin bệnh nhân, lượt khám, nhập viện, khoa điều trị, dịch vụ, viện phí, đơn thuốc. 
+LIS (Laboratory Information System): hệ thống quản lý xét nghiệm. Dữ liệu thường gồm xét nghiệm máu, nước tiểu, sinh hóa, huyết học, vi sinh và các chỉ số xét nghiệm. 
+RIS/PACS: hệ thống quản lý chẩn đoán hình ảnh. Dữ liệu gồm ảnh X-quang, CT, MRI, siêu âm và kết quả đọc ảnh của bác sĩ. 
+EMR (Electronic Medical Record): bệnh án điện tử, lưu lại quá trình điều trị của người bệnh như chẩn đoán, tiền sử bệnh, thuốc sử dụng, diễn biến điều trị và chỉ định của bác sĩ. 
+Ngoài ra còn có dữ liệu từ máy đo nhịp tim, huyết áp, SpO₂, máy theo dõi bệnh nhân và các thiết bị y tế khác. 
+Như vậy, thay vì chỉ có một hồ sơ giấy như trước đây, một người bệnh hiện nay có thể tạo ra nhiều loại dữ liệu khác nhau và các dữ liệu này được lưu trong nhiều hệ thống khác nhau.
+1.2. Dữ liệu y tế ngày càng nhiều và đa dạng
+Trong quá trình khám và điều trị, một người bệnh có thể tạo ra rất nhiều dữ liệu khác nhau. Từ lúc tiếp nhận đến khi xuất viện, bệnh viện có thể ghi nhận thông tin cá nhân, chẩn đoán, thuốc, kết quả xét nghiệm, nhịp tim, huyết áp, hình ảnh X-quang, CT, MRI và ghi chú của bác sĩ.
+Khi các hoạt động này được số hóa, dữ liệu được tạo ra và lưu lại liên tục theo thời gian. Vì vậy, lượng dữ liệu y tế ngày càng lớn.
+Không chỉ tăng về số lượng, dữ liệu y tế còn có nhiều dạng khác nhau, chẳng hạn:
+Dữ liệu dạng bảng: tuổi, giới tính, chẩn đoán, xét nghiệm, thuốc. 
+Dữ liệu chuỗi thời gian: nhịp tim, huyết áp, SpO₂ được ghi liên tục từ thiết bị theo dõi. 
+Dữ liệu văn bản: ghi chú lâm sàng, mô tả bệnh, kết luận của bác sĩ. 
+Dữ liệu hình ảnh: X-quang, CT, MRI, siêu âm. 
+Như vậy, một bệnh nhân có thể tạo ra nhiều loại dữ liệu khác nhau trong suốt quá trình điều trị. Đây là nguồn thông tin rất có giá trị cho các hệ thống AI, nhưng cũng làm cho việc khai thác dữ liệu trở nên phức tạp hơn.
+.
+1.3. Dữ liệu y tế bị phân mảnh
+Mặc dù dữ liệu y tế ngày càng nhiều, các dữ liệu liên quan đến cùng một bệnh nhân thường không được lưu tập trung tại một nơi. Thay vào đó, chúng bị chia ra ở nhiều hệ thống và nhiều thời điểm khác nhau. Đây được gọi là dữ liệu y tế bị phân mảnh.
+Ví dụ, trong cùng một bệnh viện:
+HIS (Hospital Information System): lưu các thông tin về quá trình bệnh nhân đến khám và điều trị như họ tên, tuổi, giới tính, mã bệnh nhân, ngày vào viện, khoa/phòng điều trị, lượt khám, chẩn đoán ban đầu, dịch vụ đã sử dụng và viện phí. 
+LIS (Laboratory Information System): lưu kết quả các xét nghiệm như xét nghiệm máu, nước tiểu, đường huyết, công thức máu, chức năng gan, chức năng thận, vi sinh và các chỉ số xét nghiệm khác. 
+PACS (Picture Archiving and Communication System): lưu trữ và quản lý các dữ liệu chẩn đoán hình ảnh như ảnh X-quang, CT, MRI, siêu âm và các hình ảnh y khoa khác phục vụ bác sĩ xem và chẩn đoán. 
+EMR (Electronic Medical Record): lưu bệnh án điện tử và quá trình điều trị của bệnh nhân như tiền sử bệnh, chẩn đoán, thuốc được sử dụng, chỉ định điều trị, thủ thuật, diễn biến bệnh và kết quả điều trị. 
+Hệ thống theo dõi bệnh nhân (Patient Monitoring System): ghi nhận liên tục các dấu hiệu sinh tồn như nhịp tim, huyết áp, SpO₂, nhịp thở, nhiệt độ cơ thể và một số chỉ số theo dõi khác trong quá trình điều trị.Như vậy, để có đầy đủ thông tin về một bệnh nhân, cần phải lấy dữ liệu từ nhiều hệ thống khác nhau.
+Sự phân mảnh còn có thể xảy ra theo thời gian và giữa nhiều cơ sở y tế. Một bệnh nhân có thể khám nhiều lần, điều trị tại nhiều khoa hoặc nhiều bệnh viện khác nhau, khiến dữ liệu của họ tiếp tục bị chia nhỏ ở nhiều nơi.
+Do đó, mặc dù tổng lượng dữ liệu y tế rất lớn, thông tin cần thiết cho một bài toán AI có thể nằm rải rác ở nhiều nguồn thay vì tồn tại trong một tập dữ liệu hoàn chỉnh.
+1.4. Khác cấu trúc, thiếu dữ liệu và khác phân phối
+Ba dạng không đồng nhất có ảnh hưởng trực tiếp đến khả năng khai thác dữ liệu bằng AI là: khác cấu trúc dữ liệu, thiếu dữ liệu và khác phân phối. Ba vấn đề này thường xuất hiện đồng thời trong dữ liệu y tế thực tế.
+Bảng 1.1. Ví dụ về sự không đồng nhất giữa hai nguồn dữ liệu y tế
+Khác cấu trúc (schema heterogeneity) xảy ra khi các bộ dữ liệu không có cùng tập thuộc tính. Ví dụ, một bệnh viện có SpO₂ và nhiệt độ nhưng không có CRP; bệnh viện khác có CRP và xét nghiệm sinh hóa nhưng không thu thập đầy đủ dấu hiệu sinh tồn. Khi đầu vào không cùng số chiều và không cùng ý nghĩa, các mô hình yêu cầu một schema cố định không thể được áp dụng trực tiếp.
+Thiếu dữ liệu (missingness) là đặc điểm phổ biến của dữ liệu lâm sàng. Một xét nghiệm có thể không được chỉ định vì bác sĩ đánh giá không cần thiết; một cảm biến có thể bị gián đoạn; một hệ thống có thể không lưu trường dữ liệu đó. Do đó, “không có giá trị” đôi khi mang thông tin khác với giá trị bằng 0 và cần được mô hình xử lý một cách có chủ đích.
+Khác phân phối (distribution shift/domain shift) xảy ra khi đặc điểm bệnh nhân, mô hình bệnh tật, thiết bị đo hoặc quy trình chuyên môn khác nhau giữa các cơ sở. Ngay cả khi hai bệnh viện có cùng tên feature, phân phối giá trị của feature và mối liên hệ giữa feature với outcome có thể khác nhau. Đây là nguyên nhân quan trọng khiến mô hình có hiệu năng tốt ở nơi huấn luyện nhưng suy giảm khi triển khai ở một môi trường mới.
+1.5. Vì sao các mô hình AI truyền thống gặp khó khăn?
+Các mô hình AI thông thường thường được huấn luyện với một tập dữ liệu có cấu trúc cố định. Nghĩa là mô hình đã học với những thông tin nào thì khi sử dụng cũng cần nhận được những thông tin tương tự.
+Ví dụ, một mô hình được huấn luyện tại bệnh viện A với các thông tin:
+Tuổi – Giới tính – Huyết áp – Đường huyết – Cholesterol
+nhưng bệnh viện B chỉ có:
+Tuổi – Giới tính – Huyết áp – HbA1c
+thì mô hình đã huấn luyện tại bệnh viện A không thể áp dụng trực tiếp cho dữ liệu của bệnh viện B.
+Một số khó khăn chính gồm:
+Dữ liệu đầu vào không giống nhau: mỗi bệnh viện có thể thu thập các loại thông tin khác nhau. 
+Có dữ liệu bị thiếu: không phải bệnh nhân hoặc bệnh viện nào cũng có đầy đủ tất cả các chỉ số. 
+Có thông tin riêng ở từng bệnh viện: nếu chỉ giữ những thông tin giống nhau giữa các bệnh viện thì có thể phải bỏ đi nhiều dữ liệu có giá trị. 
+Đặc điểm bệnh nhân khác nhau: tuổi, bệnh nền, mức độ bệnh hoặc quy trình điều trị giữa các bệnh viện có thể khác nhau, khiến mô hình hoạt động kém khi chuyển sang nơi mới. 
+Nguồn dữ liệu nhỏ khó huấn luyện riêng: một số bệnh viện chỉ có ít dữ liệu nên mô hình dễ học chưa tốt hoặc bị quá khớp. 
+Vì vậy, vấn đề không chỉ là chọn một thuật toán dự đoán tốt hơn. Cần một phương pháp có thể học được những đặc điểm chung từ nhiều nguồn dữ liệu khác nhau, đồng thời vẫn giữ được thông tin riêng có giá trị của từng nguồn.
+1.6. Hình thành bài toán nghiên cứu
+Từ những vấn đề đã phân tích ở trên, nhóm đề xuất nghiên cứu đề tài “Ứng dụng Deep Learning trong học biểu diễn cho dữ liệu y tế phân mảnh”.
+Mục tiêu của đề tài là xây dựng một mô hình có khả năng khai thác thông tin từ nhiều nguồn dữ liệu y tế khác nhau, học được những đặc trưng chung giữa các nguồn nhưng vẫn giữ được các thông tin riêng có giá trị của từng nguồn.
+Trong nghiên cứu, nhóm em sử dụng MIMIC-IV, tập trung vào dữ liệu bệnh nhân điều trị tại ICU (Intensive Care Unit – Đơn vị chăm sóc tích cực). Bộ dữ liệu chứa nhiều thông tin về quá trình điều trị như thông tin bệnh nhân, chẩn đoán, xét nghiệm, thuốc, thủ thuật và các dấu hiệu sinh tồn như nhịp tim, huyết áp, SpO₂. Đây là nguồn dữ liệu phù hợp để nghiên cứu bài toán dữ liệu y tế phân mảnh vì dữ liệu của một bệnh nhân được tạo ra từ nhiều loại thông tin khác nhau trong suốt quá trình điều trị.
+Pipeline đề xuất: (đợi em minh xoăn)
+

@@ -15,6 +15,9 @@ class Conversation(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String, nullable=False, default="Đoạn chat mới")
+    summary = Column(Text, nullable=True)
+    gemini_cache_name = Column(String, nullable=True)
+    gemini_cache_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Các mối quan hệ

@@ -103,7 +103,7 @@ class LegalDocumentParser:
 
 # --- Test logic nhanh ---
 if __name__ == "__main__":
-    sample_text = \"\"\"
+    sample_text = """
 Chương I. NHỮNG QUY ĐỊNH CHUNG
 Điều 1. Phạm vi điều chỉnh
 Luật này quy định về việc thành lập, tổ chức quản lý, tổ chức lại, giải thể và hoạt động có liên quan của doanh nghiệp.
@@ -111,7 +111,7 @@ Luật này quy định về việc thành lập, tổ chức quản lý, tổ c
 1. Các doanh nghiệp.
 2. Cơ quan, tổ chức, cá nhân có liên quan đến việc thành lập, tổ chức quản lý, tổ chức lại, giải thể và hoạt động có liên quan của doanh nghiệp.
 3. Các trường hợp khác.
-    \"\"\"
+    """
     
     parser = LegalDocumentParser({"title": "Luật Doanh nghiệp 2020", "source": "luat_dn.pdf"})
     docs = parser.parse(sample_text)

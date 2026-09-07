@@ -4,7 +4,14 @@ from core.database import engine, Base
 import models.user
 import models.document
 import models.chat
+import models.activity_log
 from core.config import settings
+from core.logger import setup_logging, get_logger
+from core.middleware import RequestLoggingMiddleware
+
+# Khởi tạo hệ thống Structured Logging (CloudWatch & Rotating File)
+setup_logging()
+logger = get_logger("main")
 
 app = FastAPI(
     title="RAG Chatbot API - Clean Architecture",
@@ -12,39 +19,41 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Sự kiện lúc khởi động: Tạo bảng CSDL bất đồng bộ
+# Gắn Request Logging Middleware (Gắn X-Request-ID và đo latency)
+app.add_middleware(RequestLoggingMiddleware)
+
+# Sự kiện lúc khởi động
 @app.on_event("startup")
 async def startup_event():
-    print(" Đang khởi động Server...")
-    # Tính năng tự động tạo bảng Base.metadata.create_all đã được tắt.
-    # Kể từ bây giờ, cấu trúc bảng CSDL sẽ được quản lý bằng lệnh Alembic Migration.
-    print(" Web Server đã sẵn sàng!")
-
-
+    logger.info("Đang khởi động Server...")
+    logger.info("Web Server đã sẵn sàng phục vụ!")
 
 allowed_origins_str = settings.ALLOWED_ORIGINS
 allowed_origins = [url.strip() for url in allowed_origins_str.split(",") if url.strip()]
 
-if not allowed_origins:
-    print("⚠️ CẢNH BÁO BẢO MẬT: ALLOWED_ORIGINS trống. Web sẽ chặn mọi truy cập từ Frontend!")
+# Đảm bảo luôn hỗ trợ môi trường dev cục bộ (Next.js 3000, 127.0.0.1:3000)
+for dev_url in ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173"]:
+    if dev_url not in allowed_origins:
+        allowed_origins.append(dev_url)
 
 # Cấu hình CORS an toàn
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins, # Chỉ cho phép đúng danh sách Domain khai báo
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Import routers từ Layer API
-from api.routers import document, chat, auth, conversation
+from api.routers import document, chat, auth, conversation, activity
 
 # Gắn (Include) các routers vào ứng dụng chính
 app.include_router(auth.router)
 app.include_router(conversation.router)
 app.include_router(document.router)
 app.include_router(chat.router)
+app.include_router(activity.router)
 
 @app.get("/", tags=["Health Check"])
 def read_root():
