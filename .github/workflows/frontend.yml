@@ -79,6 +79,8 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
+        command_timeout: 30m
+        timeout: 60s
         script: |
           if [ ! -d "$HOME/enterprise-rag-project" ]; then
             git clone https://github.com/TranNhatMinh5224/RAG.git "$HOME/enterprise-rag-project"
