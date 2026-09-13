@@ -4,7 +4,7 @@ langchain
 langchain-community
 langchain-huggingface
 langchain-google-genai
-torch>=2.6.0
+torch
 safetensors
 pymupdf
 qdrant-client
@@ -31,5 +31,4 @@ fastembed>=0.2.6
 celery
 redis>=5.0.0
 langfuse
-langchain-langfuse
 pydantic-settings
