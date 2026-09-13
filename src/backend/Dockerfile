@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements and install
 COPY requirements.txt .
-RUN pip install --default-timeout=1000 --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --default-timeout=1000 --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
 RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
 # Copy the entire backend application code
