@@ -16,7 +16,7 @@ logger = get_logger("main")
 app = FastAPI(
     title="RAG Chatbot API - Clean Architecture",
     description="Hệ thống hỏi đáp tài liệu chuẩn Production (100% Async)",
-    version="1.0.0"
+    version="1.0.1"
 )
 
 # Gắn Request Logging Middleware (Gắn X-Request-ID và đo latency)

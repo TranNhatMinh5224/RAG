@@ -5,12 +5,14 @@ on:
     branches: [ "main" ]
     paths:
       - 'src/backend/**'
+      - '.github/workflows/backend.yml'
       - 'docker-compose.yml'
       - 'docker-compose.prod.yml'
   pull_request:
     branches: [ "main" ]
     paths:
       - 'src/backend/**'
+      - '.github/workflows/backend.yml'
 
 jobs:
   # BƯỚC 1: KIỂM THỬ TỰ ĐỘNG & LINT (Quality Gate)
