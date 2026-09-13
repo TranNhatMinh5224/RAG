@@ -90,8 +90,8 @@ jobs:
           # Đăng nhập ECR trên EC2 (dùng quyền IAM Role của EC2)
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin 305068201208.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
           # Kéo image mới nhất của frontend từ Amazon ECR
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml pull frontend
+          docker compose -f docker-compose.prod.yml pull frontend
           # Khởi động lại cô lập frontend (không chạm vào backend hay database)
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps frontend
+          docker compose -f docker-compose.prod.yml up -d --no-deps frontend
           # Dọn dẹp image cũ tiết kiệm bộ nhớ
           docker image prune -f
