@@ -12,12 +12,15 @@ services:
     ports:
       - "8000:8000"
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+    volumes: []
     restart: always
 
   frontend:
     image: 305068201208.dkr.ecr.ap-southeast-1.amazonaws.com/enterprise-rag-frontend:latest
     ports:
       - "3000:3000" # Phù hợp với AWS ALB Target Group (Port 3000)
+    command: npm run start
+    volumes: []
     restart: always
 
 volumes:
