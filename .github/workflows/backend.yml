@@ -63,16 +63,26 @@ jobs:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Build and Push Backend Image
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push Backend Image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: enterprise-rag-backend
+        IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/legal-rag-backend:latest ./src/backend
-        docker push ${{ secrets.DOCKER_USERNAME }}/legal-rag-backend:latest
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ./src/backend
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
     - name: Zero-Downtime Deploy Backend to AWS EC2
       uses: appleboy/ssh-action@v1.0.3
@@ -81,9 +91,16 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          cd ~/legal-rag-project
-          # Chỉ kéo image mới của backend và celery_worker
-          docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull backend celery_worker
-          # Khởi động lại cô lập backend + celery_worker (không chạm vào frontend hay database)
-          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps backend celery_worker
+          if [ ! -d "$HOME/enterprise-rag-project" ]; then
+            git clone https://github.com/TranNhatMinh5224/RAG.git "$HOME/enterprise-rag-project"
+          fi
+          cd "$HOME/enterprise-rag-project"
+          git pull origin main || true
+          # Đăng nhập ECR trên EC2 (dùng quyền IAM Role của EC2)
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin 305068201208.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          # Kéo image mới nhất của backend từ Amazon ECR
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend
+          # Khởi động lại cô lập backend (không chạm vào frontend hay database)
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps backend
+          # Dọn dẹp image cũ tiết kiệm bộ nhớ
           docker image prune -f

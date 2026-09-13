@@ -14,4 +14,11 @@ COPY requirements.txt .
 RUN pip install --default-timeout=1000 --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
-# We don't copy the app code here because we will mount it as a volume for hot-reloading
+# Copy the entire backend application code
+COPY . /app
+
+# Expose FastAPI application port
+EXPOSE 8000
+
+# Default startup command
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

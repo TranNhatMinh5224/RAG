@@ -8,20 +8,16 @@ services:
     restart: always
 
   backend:
+    image: 305068201208.dkr.ecr.ap-southeast-1.amazonaws.com/enterprise-rag-backend:latest
     ports:
       - "8000:8000"
-    environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
     restart: always
 
   frontend:
-    build:
-      context: ./src/frontend
-      dockerfile: Dockerfile
-      target: production
+    image: 305068201208.dkr.ecr.ap-southeast-1.amazonaws.com/enterprise-rag-frontend:latest
     ports:
-      - "80:80" # Nginx phục vụ web trực tiếp trên port 80 (HTTP)
+      - "3000:3000" # Phù hợp với AWS ALB Target Group (Port 3000)
     restart: always
 
 volumes:
