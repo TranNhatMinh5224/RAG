@@ -6,8 +6,8 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _CONFIG_DIR = Path(__file__).resolve().parent
-_PROJECT_ROOT = _CONFIG_DIR.parents[2]
 _BACKEND_DIR = _CONFIG_DIR.parent
+_PROJECT_ROOT = _CONFIG_DIR.parents[2] if len(_CONFIG_DIR.parents) > 2 else _BACKEND_DIR
 
 _env_files = [
     str(_PROJECT_ROOT / ".env"),
