@@ -32,3 +32,4 @@ celery
 redis>=5.0.0
 langfuse
 pydantic-settings
+boto3

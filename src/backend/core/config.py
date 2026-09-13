@@ -1,3 +1,5 @@
+import json
+import os
 from pathlib import Path
 import socket
 from pydantic import model_validator
@@ -13,6 +15,26 @@ _env_files = [
     ".env",
 ]
 
+def _fetch_aws_secrets(secret_name: str = "rag/production/credentials", region_name: str = "ap-southeast-1"):
+    """Tự động tải cấu hình trực tiếp từ AWS Secrets Manager qua IAM Role của EC2."""
+    try:
+        import boto3
+        region = os.environ.get("AWS_REGION", region_name)
+        client = boto3.client("secretsmanager", region_name=region)
+        response = client.get_secret_value(SecretId=secret_name)
+        if "SecretString" in response:
+            secrets = json.loads(response["SecretString"])
+            for key, val in secrets.items():
+                if key not in os.environ:
+                    os.environ[key] = str(val)
+            print(f"[AWS Secrets Manager] Đã nạp thành công các cấu hình từ '{secret_name}' vào bộ nhớ!")
+    except Exception:
+        # Nếu đang chạy local offline hoặc chưa có quyền AWS, tự động fallback sang file .env
+        pass
+
+# Tự động nạp secret từ AWS Secrets Manager ngay khi khởi động
+_fetch_aws_secrets()
+
 def _resolve_host_to_local(url: str, docker_host: str, local_host: str = "localhost") -> str:
     """Tự động chuyển hostname container (postgres, redis, qdrant) sang localhost khi chạy ngoài Docker."""
     if f"://{docker_host}" in url or f"@{docker_host}" in url:
@@ -24,7 +46,7 @@ def _resolve_host_to_local(url: str, docker_host: str, local_host: str = "localh
 
 class Settings(BaseSettings):
     # Core system
-    SECRET_KEY: str
+    SECRET_KEY: str = "enterprise_rag_jwt_secret_key_production_2026_super_secure!"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173"
@@ -32,13 +54,19 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 25
 
     # Services
-    DATABASE_URL: str
+    DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
     QDRANT_URL: str = "http://qdrant:6333"
     REDIS_URL: str = "redis://redis:6379/0"
     RABBITMQ_URL: str = ""
 
+    # AWS S3 Storage
+    AWS_REGION: str = "ap-southeast-1"
+    S3_BUCKET_NAME: str = "enterprise-rag-storage-0117967"
+    DOCUMENTS_DRAFT_PREFIX: str = "documents/draft/"
+    DOCUMENTS_REAL_PREFIX: str = "documents/real/"
+
     # AI Engine (Default: Local Model via Ollama)
-    USE_LOCAL_LLM: bool = True
+    USE_LOCAL_LLM: bool = False
     OLLAMA_BASE_URL: str = "http://ollama:11434"
     OLLAMA_MODEL: str = "qwen2.5:7b"
     GEMINI_API_KEY: str = ""
