@@ -39,8 +39,9 @@ class ChatRepository {
         return response.data;
     }
 
-    static async sendMessageStream(conversationId, query, onChunk, onError, onComplete, signal = null) {
-        const baseURL = axiosClient.defaults.baseURL || 'http://localhost:8000';
+        const baseURL = (axiosClient.defaults.baseURL !== undefined && axiosClient.defaults.baseURL !== null)
+            ? axiosClient.defaults.baseURL
+            : (typeof window !== 'undefined' ? '' : 'http://localhost:8000');
         const token = localStorage.getItem('access_token');
 
         try {
