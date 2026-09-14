@@ -44,3 +44,6 @@ qdrant_prod_data/
 *.ui-ux-pro-max-skill
 .DS_Store
 Thumbs.db
+# test 
+test_rag_e2e.py
+test_all_services.py
