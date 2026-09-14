@@ -22,6 +22,19 @@ app = FastAPI(
 # Gắn Request Logging Middleware (Gắn X-Request-ID và đo latency)
 app.add_middleware(RequestLoggingMiddleware)
 
+import asyncio
+
+async def warmup_ai_models():
+    """Hàm chạy ngầm nạp sẵn các mô hình AI vào RAM mà không làm nghẽn Event Loop của FastAPI"""
+    logger.info(" Bắt đầu Pre-warmup: Nạp sẵn mô hình AI (Embeddings & Re-ranker) ngầm vào bộ nhớ...")
+    try:
+        from api.dependencies import get_rag_chain
+        # Chạy nạp trong ThreadPool để không khóa luồng I/O của FastAPI
+        await asyncio.to_thread(get_rag_chain)
+        logger.info(" Pre-warmup hoàn tất! VectorStore & Re-ranker đã nạp sẵn vào RAM, sẵn sàng phục vụ tức thì!")
+    except Exception as e:
+        logger.warning(f"⚠️ Pre-warmup thông báo: {e}")
+
 # Sự kiện lúc khởi động
 @app.on_event("startup")
 async def startup_event():
@@ -39,6 +52,8 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Lỗi khi khởi tạo CSDL: {e}")
     logger.info("Web Server đã sẵn sàng phục vụ!")
+    # Kích hoạt Pre-warmup chạy ngầm trong background task (hoàn toàn non-blocking)
+    asyncio.create_task(warmup_ai_models())
 
 allowed_origins_str = settings.ALLOWED_ORIGINS
 allowed_origins = [url.strip() for url in allowed_origins_str.split(",") if url.strip()]

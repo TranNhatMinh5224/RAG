@@ -5,8 +5,13 @@ from core.config import settings
 # Lấy URL từ Settings (đã tự động validate lúc khởi chạy)
 DATABASE_URL = settings.DATABASE_URL
 
-# Khởi tạo engine bất đồng bộ
-engine = create_async_engine(DATABASE_URL, echo=False)
+# Khởi tạo engine bất đồng bộ với cơ chế tự động ping và làm mới kết nối (tránh timeout từ RDS)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_recycle=300
+)
 
 # Session maker bất đồng bộ
 AsyncSessionLocal = async_sessionmaker(
