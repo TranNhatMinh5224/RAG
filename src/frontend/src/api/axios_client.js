@@ -2,16 +2,16 @@ import axios from 'axios';
 
 // Tự động xác định baseURL:
 // 1. Ưu tiên biến môi trường NEXT_PUBLIC_API_URL nếu được định nghĩa
-// 2. Nếu chạy trên trình duyệt (Client), dùng '' (relative path) để tự động gọi qua Load Balancer / Domain hiện tại
+// 2. Nếu chạy trên trình duyệt (Client), dùng '/api' (relative path) để tự động gọi qua Load Balancer
 // 3. Fallback cho Server-Side Rendering
 const getBaseURL = () => {
     if (process.env.NEXT_PUBLIC_API_URL) {
         return process.env.NEXT_PUBLIC_API_URL;
     }
     if (typeof window !== 'undefined') {
-        return '';
+        return '/api';
     }
-    return 'http://localhost:8000';
+    return 'http://localhost:8000/api';
 };
 
 // Khởi tạo instance của Axios với URL gốc của Backend

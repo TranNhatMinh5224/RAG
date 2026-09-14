@@ -48,13 +48,13 @@ app.add_middleware(
 # Import routers từ Layer API
 from api.routers import document, chat, auth, conversation, activity
 
-# Gắn (Include) các routers vào ứng dụng chính
-app.include_router(auth.router)
-app.include_router(conversation.router)
-app.include_router(document.router)
-app.include_router(chat.router)
-app.include_router(activity.router)
+# Gắn (Include) các routers vào ứng dụng chính với tiền tố chuẩn hóa /api
+all_routers = [auth.router, conversation.router, document.router, chat.router, activity.router]
+for r in all_routers:
+    app.include_router(r, prefix="/api")
+    app.include_router(r)
 
 @app.get("/", tags=["Health Check"])
+@app.get("/api", tags=["Health Check"])
 def read_root():
     return {"message": "Hệ thống RAG Backend đang hoạt động trơn tru!"}
