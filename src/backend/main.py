@@ -26,6 +26,18 @@ app.add_middleware(RequestLoggingMiddleware)
 @app.on_event("startup")
 async def startup_event():
     logger.info("Đang khởi động Server...")
+    # Tự động đồng bộ và tạo cấu trúc bảng CSDL nếu chưa có
+    try:
+        from core.database import engine, Base
+        import models.user
+        import models.document
+        import models.chat
+        import models.activity_log
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Đã đồng bộ cấu trúc tất cả các bảng CSDL (PostgreSQL RDS) thành công!")
+    except Exception as e:
+        logger.error(f"Lỗi khi khởi tạo CSDL: {e}")
     logger.info("Web Server đã sẵn sàng phục vụ!")
 
 allowed_origins_str = settings.ALLOWED_ORIGINS

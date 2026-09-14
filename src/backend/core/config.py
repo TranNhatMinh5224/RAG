@@ -37,11 +37,21 @@ _fetch_aws_secrets()
 
 def _resolve_host_to_local(url: str, docker_host: str, local_host: str = "localhost") -> str:
     """Tự động chuyển hostname container (postgres, redis, qdrant) sang localhost khi chạy ngoài Docker."""
-    if f"://{docker_host}" in url or f"@{docker_host}" in url:
-        try:
-            socket.gethostbyname(docker_host)
-        except socket.gaierror:
-            url = url.replace(f"://{docker_host}", f"://{local_host}").replace(f"@{docker_host}", f"@{local_host}")
+    if not url:
+        return url
+    try:
+        import urllib.parse
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.hostname == docker_host:
+            try:
+                socket.gethostbyname(docker_host)
+            except socket.gaierror:
+                netloc = parsed.netloc.replace(f"@{docker_host}", f"@{local_host}")
+                if parsed.netloc == docker_host:
+                    netloc = local_host
+                return urllib.parse.urlunsplit((parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+    except Exception:
+        pass
     return url
 
 class Settings(BaseSettings):
@@ -87,6 +97,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def adjust_service_urls(self):
         self.DATABASE_URL = _resolve_host_to_local(self.DATABASE_URL, "postgres")
+        if "rds.amazonaws.com" in self.DATABASE_URL and "ssl=" not in self.DATABASE_URL:
+            sep = "&" if "?" in self.DATABASE_URL else "?"
+            self.DATABASE_URL = f"{self.DATABASE_URL}{sep}ssl=require"
         self.QDRANT_URL = _resolve_host_to_local(self.QDRANT_URL, "qdrant")
         self.REDIS_URL = _resolve_host_to_local(self.REDIS_URL, "redis")
         self.OLLAMA_BASE_URL = _resolve_host_to_local(self.OLLAMA_BASE_URL, "ollama")
