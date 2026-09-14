@@ -464,10 +464,18 @@ Nếu có thiếu sót, hãy tạo ra các câu truy vấn để hệ thống đ
                     yield chunk.content
         except Exception as e:
             print(f"Lỗi khi Stream LLM: {e}. Đang thử fallback sang ainvoke...")
-            fallback_response = await self._invoke_llm(
-                final_prompt,
-                user_id=user_id,
-                session_id=conversation_id,
-                cached_content=cached_content,
-            )
-            yield fallback_response.content
+            try:
+                fallback_response = await self._invoke_llm(
+                    final_prompt,
+                    user_id=user_id,
+                    session_id=conversation_id,
+                    cached_content=cached_content,
+                )
+                yield fallback_response.content
+            except Exception as final_err:
+                print(f"❌ Cả Stream và Fallback LLM đều thất bại: {final_err}")
+                err_str = f"{e} {final_err}"
+                if "API_KEY_INVALID" in err_str or "API key not valid" in err_str:
+                    yield "\n\n⚠️ **Hệ thống đã trích xuất thành công tri thức tài liệu**, nhưng **GEMINI_API_KEY** trong AWS Secrets Manager đang là mã mẫu hoặc không hợp lệ.\n\n👉 Vui lòng cập nhật API Key chính xác từ Google AI Studio vào Secret `rag/production/credentials` trên AWS."
+                else:
+                    yield f"\n\n⚠️ Lỗi sinh câu trả lời từ AI: {str(final_err)[:200]}"
