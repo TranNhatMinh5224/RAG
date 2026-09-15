@@ -186,30 +186,48 @@ RAG/
 
 ---
 
-## 📸 6. Hình Ảnh Giao Diện Thực Tế
+## 📸 6. Hình Ảnh Giao Diện & Bằng Chứng Thực Nghiệm (UI Showcase)
 
 <div align="center">
 
-### 1. Giao diện Trò chuyện Tra cứu & Trích dẫn Nguồn chính xác
-*AI tự động đính kèm số trang, tên file và trích dẫn trực tiếp từ ngữ cảnh tìm được.*  
-![Giao diện Trò chuyện](Office/1.png)
+### 1. Giao diện Trò chuyện Tra cứu & Đối chiếu Nguồn Trích dẫn (Grounded Citations)
+*NexusDoc AI tự động đính kèm số trang, tên tài liệu gốc và trích dẫn chuẩn xác, loại bỏ hoàn toàn hiện tượng bịa đặt thông tin.*  
+![Trích dẫn nguồn chính xác](Office/nexusdoc_chat_citation.png)
 
 ---
 
-### 2. Quản lý Tài liệu & Thiết lập "Vùng Tri Thức" kiểu NotebookLM
-*Người dùng có thể tải lên đa dạng định dạng (PDF, Word, Excel, Ảnh) và gán tài liệu cho từng đoạn hội thoại.*  
+### 2. Trích xuất Thực thể & Tóm tắt Nghiệp vụ Phức tạp
+*Hệ thống phân tích ngữ cảnh sâu, tổng hợp và trả lời nhanh chóng các câu hỏi nghiệp vụ đặc thù.*  
+![Trích xuất thực thể](Office/nexusdoc_chat_product.png)
+
+---
+
+### 3. Kiểm thử Rào chắn An toàn (Enterprise Security Guardrails in Action)
+*Khi người dùng đặt câu hỏi nằm ngoài phạm vi tài liệu (ví dụ: tra cứu giá cổ phiếu ngoài Internet), hệ thống kích hoạt Guardrail từ chối lịch sự, kiên định tuân thủ nguyên tắc bảo mật và tri thức doanh nghiệp.*  
+![Kiểm thử Security Guardrails](Office/nexusdoc_guardrail_demo.png)
+
+---
+
+### 4. Quản lý Kho Tài liệu & Thiết lập "Vùng Tri Thức" kiểu NotebookLM
+*Người dùng có thể linh hoạt tải lên nhiều định dạng file (PDF, Word, Excel, Hình ảnh) và gán tài liệu cho từng phiên hội thoại.*  
 ![Quản lý tài liệu](Office/2.png)
 
 ---
 
-### 3. Phân tích Chuyên sâu & Trích xuất Văn bản Pháp luật
-*Bộ bóc tách phân cấp (Hierarchical Parser) giữ trọn cấu trúc Chương - Điều - Khoản.*  
-![Phân tích chuyên sâu](Office/3.png)
+### 5. Phân tích Cấu trúc Phân cấp Văn bản Pháp luật (Hierarchical Parser)
+*Hệ thống tự động bóc tách theo Chương, Điều, Khoản, bảo tồn quan hệ phả hệ ngữ cảnh cha.*  
+![Phân tích cấu trúc](Office/3.png)
 
 ---
 
-### 4. Bảng điều khiển Quản trị & Theo dõi Hoạt động
-*Giám sát lịch sử tương tác, quản lý người dùng và trạng thái nạp dữ liệu của hệ thống.*  
+### 6. Giám sát Vận hành & Hiệu Năng Hệ thống (CloudWatch Observability)
+*Theo dõi trực quan thời gian thực số lượng yêu cầu, độ trễ phản hồi (Response Time), tài nguyên CPU/RAM và tỷ lệ lỗi.*  
+![CloudWatch Dashboard RAG](Office/cloudwatch_dashboard_rag.png)
+
+---
+
+### 7. Bảng điều khiển Quản trị & Lịch sử Hội thoại
+*Quản trị người dùng, phân quyền bảo mật multi-tenant và xem lại toàn bộ lịch sử tương tác.*  
 ![Quản trị hệ thống](Office/4.png)
 
 </div>
