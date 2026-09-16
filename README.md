@@ -111,7 +111,7 @@ Hệ thống NexusDoc AI được thiết kế và triển khai trên hạ tần
 Toàn bộ tài nguyên được bao bọc trong một đám mây riêng ảo **Virtual Private Cloud (VPC)** với dải mạng `10.0.0.0/16`, trải dài trên **2 Availability Zones (AZs)** độc lập tại Region Singapore (`ap-southeast-1`):
 
 * **2 Public Subnets** (`10.0.1.0/24`, `10.0.2.0/24`): Chứa Internet Gateway (IGW), NAT Gateway và **Application Load Balancer (ALB)** tiếp nhận truy cập từ bên ngoài.
-* **2 Private Application Subnets** (`10.0.3.0/24`, `10.0.4.0/24`): Chứa các máy chủ ứng dụng **EC2 / ECS Fargate Task** (chạy Backend FastAPI & Vector Engine Qdrant), định tuyến ra Internet qua NAT Gateway, hoàn toàn cô lập khỏi truy cập trực tiếp từ Internet.
+* **2 Private Application Subnets** (`10.0.3.0/24`, `10.0.4.0/24`): Chứa máy chủ ứng dụng **Amazon EC2** (`enterprise-rag-server`, Ubuntu 24.04 LTS chạy Docker Compose: FastAPI Backend, Next.js Frontend, Celery Worker, Redis Cache, Qdrant Vector Store), định tuyến ra Internet qua NAT Gateway, hoàn toàn cô lập khỏi truy cập trực tiếp từ Internet.
 * **2 Isolated Database Subnets** (`10.0.5.0/24`, `10.0.6.0/24`): Chứa cụm cơ sở dữ liệu **Amazon RDS PostgreSQL**, không có route ra Internet Gateway hay NAT Gateway.
 
 <div align="center">
