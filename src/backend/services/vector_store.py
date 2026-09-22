@@ -8,16 +8,26 @@ from qdrant_client.http import models
 from core.config import settings
 
 class VectorStoreManager:
+    _shared_embeddings = None
+    _shared_sparse_embeddings = None
+
     def __init__(self, collection_name="document_qna"):
         self.collection_name = collection_name
         self.qdrant_url = settings.QDRANT_URL
         
-        print("Đang tải mô hình Embedding BAAI/bge-m3...")
-        # Mô hình BAAI/bge-m3 xuất sắc cho tiếng Việt, có dimension = 1024
-        self.embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-m3")
+        # Tái sử dụng Singleton Embedding để không load lại weights 2.3GB nhiều lần
+        if VectorStoreManager._shared_embeddings is None:
+            print("Đang nạp mô hình BAAI/bge-m3 vào RAM (Tối ưu Batch Size: 32)...")
+            VectorStoreManager._shared_embeddings = HuggingFaceEmbeddings(
+                model_name="BAAI/bge-m3",
+                encode_kwargs={"batch_size": 32, "normalize_embeddings": True}
+            )
+        self.embeddings = VectorStoreManager._shared_embeddings
         
-        print("Đang tải mô hình Sparse Embedding (BM25)...")
-        self.sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
+        if VectorStoreManager._shared_sparse_embeddings is None:
+            print("Đang nạp mô hình Sparse Embedding (BM25)...")
+            VectorStoreManager._shared_sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
+        self.sparse_embeddings = VectorStoreManager._shared_sparse_embeddings
         
         print(f"Đang kết nối tới Qdrant tại {self.qdrant_url}...")
         self.client = QdrantClient(url=self.qdrant_url)

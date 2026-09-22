@@ -13,6 +13,14 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.pool import NullPool
 from core.config import settings
 
+_vsm = None
+
+def get_vsm():
+    global _vsm
+    if _vsm is None:
+        _vsm = VectorStoreManager()
+    return _vsm
+
 async def _process_ingestion(file_path: str, user_id: int, document_id: int, request_id: str | None = None):
     set_request_id(request_id)
     set_user_id(user_id)
@@ -29,7 +37,7 @@ async def _process_ingestion(file_path: str, user_id: int, document_id: int, req
         if doc:
             original_filename = doc.filename
 
-    vsm = VectorStoreManager()
+    vsm = get_vsm()
     try:
         # Chạy logic Ingestion nặng (OCR, Chunking, Nhúng Vector)
         await vsm.ingest_document_async(file_path, user_id=user_id, document_id=document_id, original_filename=original_filename)
