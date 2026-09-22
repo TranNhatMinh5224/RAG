@@ -15,40 +15,52 @@ class VectorStoreManager:
         self.collection_name = collection_name
         self.qdrant_url = settings.QDRANT_URL
         
-        # Tái sử dụng Singleton Embedding để không load lại weights 2.3GB nhiều lần
+        # Tái sử dụng Singleton Embedding để không load lại weights nhiều lần
         if VectorStoreManager._shared_embeddings is None:
-            print("Đang nạp mô hình BAAI/bge-m3 vào RAM (Tối ưu Batch Size: 32)...")
+            print("[INFO] Loading paraphrase-multilingual-MiniLM-L12-v2 into RAM (Batch Size: 32)...")
             VectorStoreManager._shared_embeddings = HuggingFaceEmbeddings(
-                model_name="BAAI/bge-m3",
+                model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
                 encode_kwargs={"batch_size": 32, "normalize_embeddings": True}
             )
         self.embeddings = VectorStoreManager._shared_embeddings
         
         if VectorStoreManager._shared_sparse_embeddings is None:
-            print("Đang nạp mô hình Sparse Embedding (BM25)...")
+            print("[INFO] Loading Sparse BM25 model...")
             VectorStoreManager._shared_sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
         self.sparse_embeddings = VectorStoreManager._shared_sparse_embeddings
         
-        print(f"Đang kết nối tới Qdrant tại {self.qdrant_url}...")
+        print(f"[INFO] Connecting to Qdrant at {self.qdrant_url}...")
         self.client = QdrantClient(url=self.qdrant_url)
         self._init_collection()
 
     def _init_collection(self):
-        """Kiểm tra và tạo Collection trong Qdrant nếu chưa có"""
+        """Kiểm tra và tạo Collection trong Qdrant nếu chưa có (kèm kiểm tra vector size 384)"""
         collections = self.client.get_collections().collections
         exists = any(col.name == self.collection_name for col in collections)
         
+        if exists:
+            try:
+                info = self.client.get_collection(self.collection_name)
+                vectors_cfg = info.config.params.vectors
+                current_size = getattr(vectors_cfg, 'size', None)
+                if current_size and current_size != 384:
+                    print(f"[WARN] Collection '{self.collection_name}' co vector size={current_size} != 384. Dang tao lai collection...")
+                    self.client.delete_collection(self.collection_name)
+                    exists = False
+            except Exception as e:
+                print(f"[WARN] Khong the kiem tra vector size collection: {e}")
+
         if not exists:
-            print(f"Khởi tạo Collection mới: {self.collection_name} (Hỗ trợ Hybrid Search)")
+            print(f"[INFO] Khoi tao Collection moi: {self.collection_name} (Vector size: 384, Hybrid Search)")
             self.client.create_collection(
                 collection_name=self.collection_name,
-                vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
+                vectors_config=VectorParams(size=384, distance=Distance.COSINE),
                 sparse_vectors_config={
                     "text-sparse": models.SparseVectorParams()
                 }
             )
         else:
-            print(f"Collection '{self.collection_name}' đã tồn tại, tiếp tục sử dụng.")
+            print(f"[INFO] Collection '{self.collection_name}' da ton tai voi vector size=384.")
         
         # Tạo giao tiếp giữa Langchain và Qdrant
         self.vector_store = QdrantVectorStore(
@@ -61,28 +73,30 @@ class VectorStoreManager:
         )
 
     async def ingest_document_async(self, file_path: str, user_id: int, document_id: int, original_filename: str = None):
-        print(f"\n--- BẮT ĐẦU QUÁ TRÌNH INGESTION (BẤT ĐỒNG BỘ) ---")
+        import time
+        print(f"\n--- BAT DAU QUA TRINH INGESTION (BAT DONG BO) ---")
         
-        # Tiêm Embeddings vào DocumentProcessor để chạy Semantic Chunking
         from services.document_processor import DocumentProcessor
-        processor = DocumentProcessor(self.embeddings)
-        # Bọc vào to_thread để tránh OCR làm treo server
+        processor = DocumentProcessor()
+        # Bọc vào to_thread để tránh I/O làm treo server
+        start_chunk = time.time()
         chunks = await asyncio.to_thread(processor.process_file, file_path, original_filename)
+        chunk_time = time.time() - start_chunk
         
         texts = []
         metadatas = []
         for chunk in chunks:
             texts.append(chunk["content"])
-            # Gắn "thẻ căn cước" vào từng mảnh vector để phân tách dữ liệu
             meta = chunk["metadata"]
             meta["user_id"] = user_id
             meta["document_id"] = document_id
             metadatas.append(meta)
         
-        print(f"Đang nhúng (Embed) {len(texts)} chunks thành Vector và lưu vào Qdrant...")
-        # Dùng hàm aadd_texts (Async Add Texts) để không khóa server
+        print(f"[INFO] Dang nhung (Embed) {len(texts)} chunks thanh Vector 384-dim va luu vao Qdrant...")
+        start_embed = time.time()
         await self.vector_store.aadd_texts(texts=texts, metadatas=metadatas)
-        print("Hoàn tất lưu trữ! Dữ liệu đã sẵn sàng để truy vấn.")
+        embed_time = time.time() - start_embed
+        print(f"[INFO] Hoan tat! Chunking: {chunk_time:.2f}s | Embedding: {embed_time:.2f}s | Tong chunks: {len(texts)}")
 
     async def delete_document(self, document_id: int):
         """Xóa toàn bộ Vector của một File PDF khỏi Qdrant (Dùng Bất đồng bộ)"""

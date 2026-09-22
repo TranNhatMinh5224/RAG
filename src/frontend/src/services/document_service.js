@@ -38,6 +38,10 @@ class DocumentService {
         }
     }
 
+    static async deleteDocument(docId) {
+        return await this.removeDocument(docId);
+    }
+
     static getFileTypeCategory(filename) {
         const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
         if (['.pdf', '.docx'].includes(ext)) return 'docs';

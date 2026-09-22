@@ -6,8 +6,8 @@ from core.database import Base
 # Bảng trung gian Many-to-Many giữa Cuộc trò chuyện và Tài liệu
 class ConversationDocument(Base):
     __tablename__ = "conversation_documents"
-    conversation_id = Column(Integer, ForeignKey("conversations.id"), primary_key=True)
-    document_id = Column(Integer, ForeignKey("documents.id"), primary_key=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), primary_key=True)
+    document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True)
 
 class Conversation(Base):
     __tablename__ = "conversations"

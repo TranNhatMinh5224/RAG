@@ -27,5 +27,12 @@ class DocumentRepository:
         return document
 
     async def delete(self, document: Document):
+        from models.chat import ConversationDocument
+        from sqlalchemy import delete
+        
+        # Xóa các liên kết trong bảng trung gian conversation_documents trước để tránh lỗi khóa ngoại (Foreign Key)
+        await self.db.execute(
+            delete(ConversationDocument).where(ConversationDocument.document_id == document.id)
+        )
         await self.db.delete(document)
         await self.db.commit()

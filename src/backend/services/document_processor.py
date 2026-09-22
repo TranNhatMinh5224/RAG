@@ -10,7 +10,6 @@ try:
 except ImportError:
     PaddleOCR = None
 
-from langchain_experimental.text_splitter import SemanticChunker
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 try:
@@ -19,34 +18,33 @@ except ImportError:
     from src.backend.services.legal_parser import LegalDocumentParser
 
 class DocumentProcessor:
-    def __init__(self, embeddings):
-        """Khởi tạo với Recursive Splitter (cắt theo cấu trúc) và Semantic Chunker"""
+    def __init__(self, embeddings=None):
+        """Khởi tạo với Recursive Splitter (cắt theo cấu trúc)"""
         self.recursive_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=900,
-            chunk_overlap=120,
+            chunk_size=1200,
+            chunk_overlap=150,
             separators=["\n\n", "\n", ". ", " ", ""]
         )
-        self.text_splitter = SemanticChunker(
-            embeddings,
-            breakpoint_threshold_type="percentile",
-            breakpoint_threshold_amount=80
-        )
-        if PaddleOCR is not None:
+        self._ocr = None
+
+    @property
+    def ocr(self):
+        """Lazy load PaddleOCR chỉ khi thật sự gặp trang/ảnh cần OCR"""
+        if self._ocr is None and PaddleOCR is not None:
             try:
-                print("Đang khởi tạo PaddleOCR...")
-                self.ocr = PaddleOCR(use_angle_cls=True, lang='vi', show_log=False)
+                print("[INFO] Dang khoi tao PaddleOCR (Lazy Load)...")
+                self._ocr = PaddleOCR(use_angle_cls=True, lang='vi', show_log=False)
             except Exception as e:
-                print(f"Cảnh báo: Không thể nạp PaddleOCR ({e})")
-                self.ocr = None
-        else:
-            self.ocr = None
+                print(f"[WARN] Khong the nap PaddleOCR ({e})")
+                self._ocr = None
+        return self._ocr
 
     def clean_text(self, text: str) -> str:
         # 1. Nối lại các từ bị gãy ở cuối dòng do dấu gạch nối (Ví dụ: "trách nhi- \n ệm")
         text = re.sub(r'(\w+)-\s+(\w+)', r'\1\2', text)
         
-        # 2. Xóa các ký tự Unicode rác (tránh làm nhiễu mô hình Embedding)
-        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', text)
+        # 2. Xóa các ký tự ASCII điều khiển (không xóa ký tự tiếng Việt)
+        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
         
         # 3. Gom các khoảng trắng, dấu tab, dấu xuống dòng liên tiếp thành 1 dấu cách
         text = re.sub(r'\s+', ' ', text)
@@ -146,11 +144,11 @@ class DocumentProcessor:
                             page_text += line[1][0] + "\n"
                     text = page_text.strip()
                 except Exception as e:
-                    print(f"Lỗi khi OCR trang {page_num + 1}: {e}")
+                    print(f"[ERROR] Loi khi OCR trang {page_num + 1}: {e}")
                     
             if text:
                 if self.is_toc_page(text):
-                    print(f" [Cleaner] Bỏ qua trang Mục lục (TOC): Trang {page_num + 1}")
+                    print(f"[INFO] [Cleaner] Bo qua trang Muc luc (TOC): Trang {page_num + 1}")
                     continue
                 pages_text.append({"text": text, "page": page_num + 1})
                 
@@ -169,7 +167,7 @@ class DocumentProcessor:
                     page_text += line[1][0] + "\n"
             return [{"text": page_text, "page": 1}] if page_text.strip() else []
         except Exception as e:
-            print(f"Lỗi khi OCR ảnh {file_path}: {e}")
+            print(f"[ERROR] Loi khi OCR anh {file_path}: {e}")
             return []
 
     def process_docx(self, file_path: str):
@@ -210,7 +208,7 @@ class DocumentProcessor:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Không tìm thấy file: {file_path}")
 
-        print(f"Đang đọc và bóc tách cấu trúc file: {file_path}")
+        print(f"[INFO] Dang doc va boc tach cau truc file: {file_path}")
         doc_display_name = original_filename or os.path.basename(file_path)
         
         file_ext = file_path.lower()
@@ -234,7 +232,7 @@ class DocumentProcessor:
         is_legal_doc = bool(re.search(r'^Điều\s+\d+[\.:]?', full_document_text, re.MULTILINE | re.IGNORECASE))
         
         if is_legal_doc and file_ext in [".pdf", ".docx"]:
-            print("Phát hiện văn bản Pháp luật -> Kích hoạt LegalDocumentParser")
+            print("[INFO] Phat hien van ban Phap luat -> Kich hoat LegalDocumentParser")
             parser = LegalDocumentParser({"title": doc_display_name, "source": doc_display_name})
             legal_docs = parser.parse(full_document_text)
             
@@ -244,7 +242,7 @@ class DocumentProcessor:
                     meta.update({
                         "source": doc_display_name,
                         "filename": doc_display_name,
-                        "section_title": meta.get("article_title") or "Điều khoản",
+                        "section_title": meta.get("article_title") or "Dieu khoan",
                         "chunk_type": "legal",
                         "char_count": len(doc.page_content.strip())
                     })
@@ -256,12 +254,12 @@ class DocumentProcessor:
             for idx, item in enumerate(chunks_with_metadata):
                 item["metadata"]["chunk_index"] = idx
                 item["metadata"]["total_chunks"] = total
-            print(f" Legal Chunking hoàn tất: Tạo ra {total} khối theo cấu trúc Điều/Khoản.")
+            print(f"[INFO] Legal Chunking hoan tat: Tao ra {total} khoi theo cau truc Dieu/Khoan.")
             return chunks_with_metadata
 
         # Văn bản thông thường (Báo cáo, Luận văn, Tài liệu kỹ thuật, Word, Excel...)
         # Phân tích cấu trúc theo Heading/Chương mục
-        print("Kích hoạt Structure-Aware Chunking (Phân tích cấu trúc theo Chương mục & Tiêu đề)...")
+        print("[INFO] Kich hoat Structure-Aware Chunking (Phan tich cau truc theo Chuong muc & Tieu de)...")
         current_heading = "Tổng quan"
         raw_sections = []
         
@@ -318,5 +316,5 @@ class DocumentProcessor:
             item["metadata"]["chunk_index"] = idx
             item["metadata"]["total_chunks"] = total
             
-        print(f" Structure-Aware Chunking hoàn tất: Tạo ra {total} khối tri thức có cấu trúc hoàn chỉnh.")
+        print(f"[INFO] Structure-Aware Chunking hoan tat: Tao ra {total} khoi tri thuc co cau truc hoan chinh.")
         return chunks_with_metadata
