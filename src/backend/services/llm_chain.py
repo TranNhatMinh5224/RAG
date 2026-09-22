@@ -43,6 +43,15 @@ class RAGChain:
                 base_url=settings.OLLAMA_BASE_URL,
                 temperature=0.1,
             )
+        elif getattr(settings, "USE_BEDROCK", False):
+            from services.bedrock_service import BedrockMantleChat
+            print(f"🚀 Khởi tạo Amazon Bedrock (Mantle): '{settings.BEDROCK_MODEL}'...")
+            self.llm = BedrockMantleChat(
+                api_key=settings.BEDROCK_API_KEY,
+                base_url=settings.BEDROCK_BASE_URL,
+                model=settings.BEDROCK_MODEL,
+                temperature=0.1,
+            )
         else:
             # Lấy API Key từ cấu hình tập trung
             gemini_api_key = settings.GEMINI_API_KEY
@@ -252,7 +261,7 @@ Nếu có thiếu sót, hãy tạo ra các câu truy vấn để hệ thống đ
                 chat_history=chat_history,
                 question=question
             )
-            model_name = f"Ollama {settings.OLLAMA_MODEL}" if settings.USE_LOCAL_LLM else "Gemini Flash"
+            model_name = f"Amazon Bedrock ({settings.BEDROCK_MODEL})" if getattr(settings, "USE_BEDROCK", False) else (f"Ollama {settings.OLLAMA_MODEL}" if settings.USE_LOCAL_LLM else "Gemini Flash")
             print(f" LLM ({model_name}) đang đọc tài liệu và sinh câu trả lời...")
         response = await self._invoke_llm(
             final_prompt,
@@ -337,7 +346,8 @@ Nếu có thiếu sót, hãy tạo ra các câu truy vấn để hệ thống đ
                 question=question
             )
         
-        print(" LLM (Gemini 2.5 Flash) đang đọc tài liệu và sinh luồng câu trả lời (Stream)...")
+        stream_model_name = f"Amazon Bedrock ({settings.BEDROCK_MODEL})" if getattr(settings, "USE_BEDROCK", False) else "Gemini 2.5 Flash"
+        print(f" LLM ({stream_model_name}) đang đọc tài liệu và sinh luồng câu trả lời (Stream)...")
         
         config = {}
         if self.callbacks:

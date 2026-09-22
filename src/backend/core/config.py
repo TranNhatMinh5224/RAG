@@ -81,6 +81,12 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "qwen2.5:7b"
     GEMINI_API_KEY: str = ""
 
+    # Amazon Bedrock (Mantle Endpoint)
+    USE_BEDROCK: bool = False
+    BEDROCK_API_KEY: str = ""
+    BEDROCK_BASE_URL: str = "https://bedrock-mantle.us-east-1.api.aws/v1"
+    BEDROCK_MODEL: str = "mistral.ministral-3-14b-instruct"
+
     # Langfuse
     LANGFUSE_PUBLIC_KEY: str | None = None
     LANGFUSE_SECRET_KEY: str | None = None
